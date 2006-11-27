@@ -109,12 +109,19 @@ void LocusParser(char *sLocusStr, struct tGBFFData *ptGBFFData) {
     };
     
     struct tData tDatas[] = {
-        {STRING, ptGBFFData->sLocusName},
-        {LONG, &(ptGBFFData->lLength)},
-        {STRING, ptGBFFData->sType},
-        {STRING, ptGBFFData->sTopology},
-        {STRING, ptGBFFData->sDivisionCode},
-        {STRING, ptGBFFData->sDate}};
+        {STRING, NULL},
+        {LONG, NULL},
+        {STRING, NULL},
+        {STRING, NULL},
+        {STRING, NULL},
+        {STRING, NULL}};
+
+    tDatas[0].Pointer = ptGBFFData->sLocusName;
+    tDatas[1].Pointer = &(ptGBFFData->lLength);
+    tDatas[2].Pointer = ptGBFFData->sType;
+    tDatas[3].Pointer = ptGBFFData->sTopology;
+    tDatas[4].Pointer = ptGBFFData->sDivisionCode;
+    tDatas[5].Pointer = ptGBFFData->sDate;
 
     regcomp(&ptRegExLocus, sLocus, REG_EXTENDED | REG_ICASE);
     
@@ -275,30 +282,25 @@ unsigned int SequenceParser(char *psSequence, char *psSequence2) {
 }
 
 void RevCom(char *psSequence) {
-    char *psSequenceTemp, c;
-    long i;
-    unsigned long lSeqLen, j;
+    char c;
     unsigned int k;
+    unsigned long i, j;
     
-    psSequenceTemp = strdup(psSequence);
-    lSeqLen = (unsigned long) strlen(psSequence);
-    /*
-    printf("lSeqLen: %li\n", lSeqLen);
-    */
-    j = 0;
-    for(i = lSeqLen - 1; i > -1; i--) {
-        /* printf("%li\n", i); */
-        c = *(psSequenceTemp + i);
-        for(k = 0; k < iBaseLen; k++) {
-            if (*(sNorBase + k) == c) {
-                *(psSequence + j++) = *(sComBase + k);
-                break;
-            }
-        }
-        if (k == 30) *(psSequence + j++) = 'X';
+    for (i = 0, j = strlen(psSequence) - 1; i < j; i++, j--) {
+	c = *(psSequence + i);
+	*(psSequence + i) = 'X';
+	for (k = 0; k < iBaseLen; k++)
+	    if (*(sNorBase + k) == *(psSequence + j)) {
+		*(psSequence + i) = *(sComBase + k);
+		break;
+	    }
+	*(psSequence + j) = 'X';
+	for (k = 0; k < iBaseLen; k++)
+	    if (*(sNorBase + k) == c) {
+		*(psSequence + j) = *(sComBase + k);
+		break;
+	}
     }
-    
-    free(psSequenceTemp);
 }
 
 char *GBFF_Get_Sequence(char *psSequence, struct tFeature *ptFeature) {
