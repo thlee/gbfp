@@ -35,7 +35,7 @@ PyObject* MakeQualifierList(struct tQualifier *ptQualifier, unsigned int iQualif
         ptQualData = ptQualifier + i;
         
         QualifierTuple = PyTuple_New(2);
-        PyTuple_SetItem(QualifierTuple, 0, PyString_FromString((char *) &(ptQualData->sQualifier)));
+        PyTuple_SetItem(QualifierTuple, 0, PyString_FromString(ptQualData->psQualifier));
         PyTuple_SetItem(QualifierTuple, 1, PyString_FromString(ptQualData->psValue));
         PyList_Append(QualifierList, QualifierTuple);
     }
@@ -80,8 +80,9 @@ PyObject* MakeGBFFDataDict(struct tGBFFData *ptGBFFData) {
 
     FeatureList = PyList_New(0);
 
-    for(i = 0; i < ptGBFFData->iFeatureNumber; i++) \
+    for(i = 0; i < ptGBFFData->iFeatureNumber; i++) {
         PyList_Append(FeatureList, MakeFeatureDict((ptGBFFData->ptFeatures) + i));
+    }
 
     PyDict_SetItemString(GBFFDataDict, "features", FeatureList);
 
