@@ -1,14 +1,16 @@
-#define LINELEN            65536
-#define MEGA               1048576
-#define INITGBFSEQNUM      5
-#define INITFEATURENUM     64
-#define FEATURELEN         16
-#define QUALIFIERLEN       16
-#define LOCUSLEN           16
-#define TYPELEN            9
-#define TOPOLOGYSTRLEN     8
-#define DIVISIONCODELEN    3
-#define DATESTRLEN         11
+#define LINELEN             65536
+#define MEGA                1048576
+#define INITGBFSEQNUM       5
+#define INITFEATURENUM      64
+#define INITQUALIFIERNUM    128
+#define FEATURELEN          16
+#define QUALIFIERLEN        16
+#define LOCUSLEN            16
+#define TYPELEN             9
+#define TOPOLOGYSTRLEN      8
+#define DIVISIONCODELEN     3
+#define DATESTRLEN          11
+#define QUALIFIERSTART      21
 
 #define INELSE              0
 #define INFEATURE           1
@@ -29,7 +31,7 @@ struct tLocation {
 };
 
 struct tQualifier {
-    char sQualifier[QUALIFIERLEN + 1];
+    char *psQualifier;
     char *psValue;
 };
 

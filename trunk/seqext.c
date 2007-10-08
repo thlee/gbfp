@@ -9,7 +9,11 @@
 #include "gbfp.h"
  
 void help(void) {
-        printf("Convert GenBank sequence into FASTA sequence.\n\nUsage: gbk2fna [-h] [-V] [-f Feature_to_extract] [-q Qualifier_to_print] [-i Genbank_file]\n\n-V  print version information and exit\n");
+        printf("Convert GenBank sequence into FASTA sequence.\n"
+        "\n"
+        "Usage: seqext [-h] [-V] [-f Feature_to_extract (default: gene)] [-q Qualifier_to_print] [-i Genbank_file]\n"
+        "\n"
+        "-V  print version information and exit\n");
 }
 
 int main(int argc, char *argv[]) {
@@ -46,7 +50,6 @@ int main(int argc, char *argv[]) {
         }
     }
  
-    
     pptSeqData = GBFF_Parser(psFileName);
     if (pptSeqData != NULL) {
         for (i = 0; (ptSeqData = *(pptSeqData + i)) != NULL; i++) {
@@ -58,17 +61,17 @@ int main(int argc, char *argv[]) {
                             ptFeature->sFeature, \
                             ptFeature->lStart, \
                             ptFeature->lEnd);
-                        printf("%s\n", GBFF_Get_Sequence(ptSeqData->psSequence, ptSeqData->ptFeatures + j));
+                        printf("%s\n", GBFF_Get_Sequence(ptSeqData->psSequence, ptFeature));
                     } else {
                         for (k = 0; k < ptFeature->iQualifierNum; k++) {
                             ptQualifier = (ptFeature->ptQualifier + k);
-                            if (strcmp(psQualifier, ptQualifier->sQualifier) == 0) {
+                            if (strcmp(psQualifier, ptQualifier->psQualifier) == 0) {
                                 printf(">%s_%li_%li %s\n", \
                                     ptFeature->sFeature, \
                                     ptFeature->lStart, \
                                     ptFeature->lEnd, \
                                     ptQualifier->psValue);
-                                printf("%s\n", GBFF_Get_Sequence(ptSeqData->psSequence, ptSeqData->ptFeatures + j));
+                                printf("%s\n", GBFF_Get_Sequence(ptSeqData->psSequence, ptFeature));
                                 break;
                             }
                         }
