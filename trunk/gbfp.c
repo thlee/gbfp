@@ -1,3 +1,5 @@
+#define __EXTENSIONS__
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <regex.h>
@@ -106,7 +108,7 @@ void LocusParser(char *sLocusStr, struct tGBFFData *ptGBFFData) {
     regex_t ptRegExLocus;
     regmatch_t ptRegMatch[7];
     
-    const char sLocus[] = "LOCUS +([a-Z|0-9|_]+) +([0-9]+) bp +([a-z|A-Z|-]+) +([a-z]+) +([A-Z]{3}) (.+)";
+    const char sLocus[] = "LOCUS +([a-z|A-Z|0-9|_]+) +([0-9]+) bp +([a-z|A-Z|-]+) +([a-z]+) +([A-Z]{3}) (.+)";
     char sTemp[LINELEN];
     unsigned int i, iLen;
     
@@ -131,7 +133,12 @@ void LocusParser(char *sLocusStr, struct tGBFFData *ptGBFFData) {
     tDatas[4].Pointer = ptGBFFData->sDivisionCode;
     tDatas[5].Pointer = ptGBFFData->sDate;
 
-    regcomp(&ptRegExLocus, sLocus, REG_EXTENDED | REG_ICASE);
+    i = regcomp(&ptRegExLocus, sLocus, REG_EXTENDED | REG_ICASE);
+    if (i != 0) {
+        regerror(i, &ptRegExLocus, sTemp, LINELEN);
+        fprintf(stderr, "%s\n", sTemp);
+        exit(1);
+    }
     
     rtrim(sLocusStr);
         
@@ -156,7 +163,9 @@ void LocusParser(char *sLocusStr, struct tGBFFData *ptGBFFData) {
             }
         }
     } else {
-        perror(sLocusStr);
+        regerror(i, &ptRegExLocus, sTemp, LINELEN);
+        fprintf(stderr, "%s\n", sTemp);
+        exit(1);
     }
 }
 

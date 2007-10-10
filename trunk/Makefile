@@ -23,7 +23,7 @@ $(OBJS): gbfp.c
 	$(CC) $(CFLAGS) -D_GNU_SOURCE -fPIC -g -c gbfp.c
 
 $(SHAREDLIB): $(OBJS)
-	$(CC) -shared -Wl,-soname,$(SHAREDLIBM) -o $(SHAREDLIBV) $(OBJS)
+	$(CC) -shared -Wl,-h,$(SHAREDLIBM) -o $(SHAREDLIBV) $(OBJS)
 
 $(LIBS): $(OBJS)
 	$(AR) $(LIBS) $(OBJS)
