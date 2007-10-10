@@ -1,3 +1,5 @@
+#define __EXTENSIONS__
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -5,7 +7,6 @@
 #include <unistd.h>
 #include <string.h>
 #include <zlib.h>
-#include <getopt.h>
 #include "gbfp.h"
  
 void help(void) {
