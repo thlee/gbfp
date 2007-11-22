@@ -94,8 +94,6 @@ static PyObject* parse(PyObject *self, PyObject *args) {
     char *psFileName;
 
     struct tGBFFData **pptGBFFData;
-    struct tGBFFData *ptGBFFData;
-    struct tFeature *ptFeature;
 
     PyObject *GBFFDataList;
 
@@ -127,7 +125,7 @@ static struct PyMethodDef gbfp_methods[] = {
     {NULL, NULL}
 };
 
-void initgbfp() {
+void initgbfp(void) {
     PyObject *parser; 
     parser = Py_InitModule("gbfp", gbfp_methods);
     ErrorObject = Py_BuildValue("s", "GBFF parser error !!!");

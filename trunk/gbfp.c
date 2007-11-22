@@ -42,7 +42,7 @@ void InitRegEx(void) {
     const char sPositions_2[] = "^<?>?([0-9]+)$";
     const char sComplement[] = "complement\\((.+)\\)";
     const char sJoin[] = "join\\((.+)\\)";
-    const char sRegexQualifier[] = "^([^=]+)=\"+(.+)\"+$";
+    const char sRegexQualifier[] = "^([^=]+)=\"?([^\"]+)\"?$";
 
     regcomp(&ptPositions, sPositions, REG_EXTENDED);
     regcomp(&ptPositions_2, sPositions_2, REG_EXTENDED);
@@ -53,26 +53,41 @@ void InitRegEx(void) {
 
 int Positions2Numbers(char *psPositions, unsigned long *lStart, unsigned long *lEnd) {
     regmatch_t ptRegMatch[3];
+    /*
     unsigned int iLen = 0;
     char sTemp[LINELEN];
+    */
    
     if (regexec(&ptPositions, psPositions, 3, ptRegMatch, 0) == 0) {
+        /*
         iLen = ptRegMatch[1].rm_eo - ptRegMatch[1].rm_so;
         memcpy(sTemp, (psPositions + ptRegMatch[1].rm_so), iLen);
         *(sTemp + iLen) = '\0';
         *lStart = atol(sTemp);
-        
+
         iLen = ptRegMatch[2].rm_eo - ptRegMatch[2].rm_so;
         memcpy(sTemp, (psPositions + ptRegMatch[2].rm_so), iLen);
         *(sTemp + iLen) = '\0';
         *lEnd = atol(sTemp);
+        */
+
+        *(psPositions + ptRegMatch[1].rm_eo) = '\0';
+        *lStart = atol(psPositions + ptRegMatch[1].rm_so);
         
+        *(psPositions + ptRegMatch[2].rm_eo) = '\0';
+        *lEnd = atol(psPositions + ptRegMatch[2].rm_so);
+                
         return 1;
     } else if (regexec(&ptPositions_2, psPositions, 3, ptRegMatch, 0) == 0) {
+        /*
         iLen = ptRegMatch[1].rm_eo - ptRegMatch[1].rm_so;
         memcpy(sTemp, (psPositions + ptRegMatch[1].rm_so), iLen);
         *(sTemp + iLen) = '\0';
         *lStart = *lEnd = atol(sTemp);
+        */
+
+        *(psPositions + ptRegMatch[1].rm_eo) = '\0';
+        *lStart = *lEnd = atol(psPositions + ptRegMatch[1].rm_so);
         
         return 1;
     } else {
@@ -234,38 +249,54 @@ void LocationParser(char *sLocation, struct tFeature *pFeature) {
 
 void QualifierParser(char *psQualifier, struct tFeature *pFeature) {
     regmatch_t ptRegMatch[3];
+    int iErrorNo;
+    /* char sTemp[LINELEN]; */
     char *psTemp = NULL;
     char *psString = NULL;
     struct tQualifier *ptQualifier;
     
+    /* printf("\n\n%s\n", psQualifier); */
     
     pFeature->ptQualifier = malloc(INITQUALIFIERNUM * sizeof(struct tQualifier));
     ptQualifier = pFeature->ptQualifier;
 
     /* Parse the 1st qualifier string */
     psTemp = strtok_r(psQualifier, "\n", &psString);
-    if (regexec(&ptRegexQualifier, psTemp, 3, ptRegMatch, 0) == 0) {
-
+    /* printf("%s\n", psTemp); */
+    ptQualifier->psQualifier = psTemp;
+    ptQualifier->psValue = psTemp;
+    if ((iErrorNo = regexec(&ptRegexQualifier, psTemp, 3, ptRegMatch, 0)) == 0) {
         *(psTemp + ptRegMatch[1].rm_eo) = '\0';
-        ptQualifier->psQualifier = psTemp + ptRegMatch[1].rm_so;
-    
         *(psTemp + ptRegMatch[2].rm_eo) = '\0';
         ptQualifier->psValue = psTemp + ptRegMatch[2].rm_so;
-
-        ptQualifier++;
+    /*
+    } else {
+        regerror(iErrorNo, &ptRegexQualifier, sTemp, LINELEN);
+        fprintf(stderr, "%s\n", sTemp);
+        exit(1);
+    */
     }
+    /* printf("%s %s\n", ptQualifier->psQualifier, ptQualifier->psValue); */
+    ptQualifier++;
     
     /* Parse the rest qualifier string */
     while((psTemp = strtok_r(NULL, "\n", &psString))) {
-        if (regexec(&ptRegexQualifier, psTemp, 3, ptRegMatch, 0) == 0) {
+        /* printf("%s\n", psTemp); */
+        ptQualifier->psQualifier = psTemp;
+        ptQualifier->psValue = psTemp;
+        if ((iErrorNo = regexec(&ptRegexQualifier, psTemp, 3, ptRegMatch, 0)) == 0) {
             *(psTemp + ptRegMatch[1].rm_eo) = '\0';
-            ptQualifier->psQualifier = psTemp + ptRegMatch[1].rm_so;
-        
             *(psTemp + ptRegMatch[2].rm_eo) = '\0';
             ptQualifier->psValue = psTemp + ptRegMatch[2].rm_so;
-
-            ptQualifier++;
+        /*
+        } else {
+            regerror(iErrorNo, &ptRegexQualifier, sTemp, LINELEN);
+            fprintf(stderr, "%s\n", sTemp);
+            exit(1);
+        */
         }
+        /* printf("%s %s\n", ptQualifier->psQualifier, ptQualifier->psValue); */
+        ptQualifier++;
     }
 
     pFeature->iQualifierNum = ptQualifier - pFeature->ptQualifier;
