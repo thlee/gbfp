@@ -11,25 +11,15 @@
  
 #include "gbfp.h"
  
-const char sVer[] = "0.2.0";
+const char sVer[] = "0.3.0";
 const char sNorBase[] = "ACGTRYMKWSBDHVNacgtrymkwsbdhvn";
 const char sComBase[] = "TGCAYRKMWSVHDBNtgcayrkmwsvhdbn";
 const unsigned int iBaseLen = 30;
 
-regex_t ptPositions;
-regex_t ptPositions_2;
-regex_t ptComplement;
-regex_t ptJoin;
-regex_t ptRegexQualifier;
-
-void rtrim(char *sLine) {
+static void rtrim(char *sLine) {
     register int i;
     
     for (i = (strlen(sLine) - 1); i >= 0; i--) {
-        /*
-        if (isspace(sLine[i])) sLine[i] = '\0';
-        else break;
-        */
         if (! isspace(sLine[i])) {
             sLine[++i] = '\0';
             break;
@@ -37,67 +27,66 @@ void rtrim(char *sLine) {
     }
 }
 
-void InitRegEx(void) {
-    const char sPositions[] = "^<?([0-9]+)\\.\\.>?([0-9]+)$";
-    const char sPositions_2[] = "^<?>?([0-9]+)$";
-    const char sComplement[] = "complement\\((.+)\\)";
-    const char sJoin[] = "join\\((.+)\\)";
-    const char sRegexQualifier[] = "^([^=]+)=\"?([^\"]+)\"?$";
-
-    regcomp(&ptPositions, sPositions, REG_EXTENDED);
-    regcomp(&ptPositions_2, sPositions_2, REG_EXTENDED);
-    regcomp(&ptComplement, sComplement, REG_EXTENDED | REG_ICASE);
-    regcomp(&ptJoin, sJoin, REG_EXTENDED | REG_ICASE);
-    regcomp(&ptRegexQualifier, sRegexQualifier, REG_EXTENDED);
+static void rtrim2(char *sLine, char cRemove) {
+    register int i;
+    
+    for (i = (strlen(sLine) - 1); i >= 0; i--) {
+        if (sLine[i] == cRemove) {
+            sLine[i] = '\0';
+            break;
+        }
+    }
 }
 
-int Positions2Numbers(char *psPositions, unsigned long *lStart, unsigned long *lEnd) {
-    regmatch_t ptRegMatch[3];
+static int Pos2Num(char *psPositions, int aiPositions[]) {
+    register int i;
+    int iNum = 0;
+
+    for (i = strlen(psPositions); i >= 0; i--) {
+        if (isdigit(*(psPositions + i))) aiPositions[(aiPositions[iNum] - 1 == i) ? iNum : ++iNum] = i;
+        else *(psPositions + i) = '\0';
+    }
+
+    return iNum;
+}
+
+static int Positions2Numbers(char *psPositions, unsigned long *lStart, unsigned long *lEnd) {
+    int aiPositions[16] = {-2,};
+    int iNum;
+
     /*
-    unsigned int iLen = 0;
-    char sTemp[LINELEN];
+    printf("%s\t", psPositions);
     */
+
+    iNum = Pos2Num(psPositions, aiPositions);
    
-    if (regexec(&ptPositions, psPositions, 3, ptRegMatch, 0) == 0) {
-        /*
-        iLen = ptRegMatch[1].rm_eo - ptRegMatch[1].rm_so;
-        memcpy(sTemp, (psPositions + ptRegMatch[1].rm_so), iLen);
-        *(sTemp + iLen) = '\0';
-        *lStart = atol(sTemp);
+    if (iNum == 2) {
+        *lStart = atol(psPositions + aiPositions[2]);
+        
+        *lEnd = atol(psPositions + aiPositions[1]);
 
-        iLen = ptRegMatch[2].rm_eo - ptRegMatch[2].rm_so;
-        memcpy(sTemp, (psPositions + ptRegMatch[2].rm_so), iLen);
-        *(sTemp + iLen) = '\0';
-        *lEnd = atol(sTemp);
+        /*
+        printf("%li\t%li\n", *lStart, *lEnd);
         */
 
-        *(psPositions + ptRegMatch[1].rm_eo) = '\0';
-        *lStart = atol(psPositions + ptRegMatch[1].rm_so);
-        
-        *(psPositions + ptRegMatch[2].rm_eo) = '\0';
-        *lEnd = atol(psPositions + ptRegMatch[2].rm_so);
-                
         return 1;
-    } else if (regexec(&ptPositions_2, psPositions, 3, ptRegMatch, 0) == 0) {
-        /*
-        iLen = ptRegMatch[1].rm_eo - ptRegMatch[1].rm_so;
-        memcpy(sTemp, (psPositions + ptRegMatch[1].rm_so), iLen);
-        *(sTemp + iLen) = '\0';
-        *lStart = *lEnd = atol(sTemp);
+    } else if (iNum == 1) {
+        *lStart = *lEnd = atol(psPositions + aiPositions[1]);
+       
+        /* 
+        printf("%li\t%li\n", *lStart, *lEnd);
         */
 
-        *(psPositions + ptRegMatch[1].rm_eo) = '\0';
-        *lStart = *lEnd = atol(psPositions + ptRegMatch[1].rm_so);
-        
         return 1;
     } else {
         fprintf(stderr, "Warning: cannot parse '%s'\n", psPositions);
 
         return 0;
     }
+
 }
 
-void LocusParser(char *sLocusStr, struct tGBFFData *ptGBFFData) {
+static void LocusParser(char *sLocusStr, struct tGBFFData *ptGBFFData) {
     /*    
     01-05      'LOCUS'
     06-12      spaces
@@ -184,53 +173,73 @@ void LocusParser(char *sLocusStr, struct tGBFFData *ptGBFFData) {
     }
 }
 
+static char *checkComplement(char *sLocation) {
+    char *sPosition;
+
+    for (;isspace(*sLocation);sLocation++);
+
+    for (sPosition = sLocation; *sPosition; sPosition++) {
+        /* Check the 1st and the 2nd characters of 'complement' */
+        if (*sPosition == 'c' && *(sPosition + 1) == 'o') {
+            rtrim2(sLocation, ')');
+            return sPosition + 11;
+        }
+    }
+
+    return sLocation;
+}
+
+static char *checkJoin(char *sLocation) {
+    char *sPosition;
+
+    for (;isspace(*sLocation);sLocation++);
+
+    for (sPosition = sLocation; *sPosition; sPosition++) {
+        /* Check the 1st and the 2nd characters of 'complement' */
+        if (*sPosition == 'j' && *(sPosition + 1) == 'o') {
+            rtrim2(sLocation, ')');
+            return sPosition + 5;
+        }
+    }
+
+    return sLocation;
+}
+
 /* Parsing a string which contains location information */
 
-void LocationParser(char *sLocation, struct tFeature *pFeature) {
-    regmatch_t ptRegMatch[2];
-
-    char sTemp[2][LINELEN];
+static void LocationParser(char *sLocation, struct tFeature *pFeature) {
+    char *psTemp;
     char *psString = NULL;
     char *psLocation = NULL;
     
-    unsigned int iLen = 0;
     unsigned int iLocationNum = 1;
     
     /* Evalue sequence direction
-    sTemp[0] have location and join informations
+    psString has location and join informations
     */
-    if (regexec(&ptComplement, sLocation, 2, ptRegMatch, 0) == 0) {
-        iLen = ptRegMatch[1].rm_eo - ptRegMatch[1].rm_so;
-        memcpy(sTemp[0], (sLocation + ptRegMatch[1].rm_so), iLen);
-        *(sTemp[0] + iLen) = '\0';
-        pFeature->cDirection = REVCOM;
-    } else {
-        strcpy(sTemp[0], sLocation);
-        pFeature->cDirection = NORMAL;
-    }
+
+    psString = checkComplement(sLocation);
+
+    if (sLocation == psString) pFeature->cDirection = NORMAL;
+    else pFeature->cDirection = REVCOM;
 
     /* Remove 'join' string
-    sTemp[1] have location informations
+    psString has location informations
     */
-    if (regexec(&ptJoin, sTemp[0], 2, ptRegMatch, 0) == 0) {
-        iLen = ptRegMatch[1].rm_eo - ptRegMatch[1].rm_so;
-        memcpy(sTemp[1], (sTemp[0] + ptRegMatch[1].rm_so), iLen);
-        *(sTemp[1] + iLen) = '\0';
-    } else {
-        strcpy(sTemp[1], sTemp[0]);
-    }
-    
-    psString = (sTemp[1] - 1);
-    while((psString = strchr((psString + 1), ','))) iLocationNum++;    
+
+    psString = checkJoin(psString);
+
+    psTemp = psString - 1;
+    while((psTemp = strchr((psTemp + 1), ','))) iLocationNum++;
     pFeature->ptLocation = malloc(iLocationNum * sizeof(*(pFeature->ptLocation)));
 
     iLocationNum = 0;
-    psLocation = strtok_r(sTemp[1], ",", &psString);
+    psLocation = strtok_r(psString, ",", &psTemp);
     if (Positions2Numbers(psLocation,
         &(((pFeature->ptLocation)+iLocationNum)->lStart),
         &(((pFeature->ptLocation)+iLocationNum)->lEnd)) == 1) iLocationNum++;
 
-    while((psLocation = strtok_r(NULL, ",", &psString))) {
+    while((psLocation = strtok_r(NULL, ",", &psTemp))) {
         if (Positions2Numbers(psLocation,
             &(((pFeature->ptLocation)+iLocationNum)->lStart),
             &(((pFeature->ptLocation)+iLocationNum)->lEnd))) iLocationNum++;
@@ -240,17 +249,33 @@ void LocationParser(char *sLocation, struct tFeature *pFeature) {
     pFeature->lStart = (pFeature->ptLocation)->lStart;
     pFeature->lEnd = ((pFeature->ptLocation)+(iLocationNum - 1))->lEnd;
     pFeature->iLocationNum = iLocationNum;
-
-    /*
-    regfree(&ptComplement);
-    regfree(&ptJoin);
-    */
 }
 
-void QualifierParser(char *psQualifier, struct tFeature *pFeature) {
-    regmatch_t ptRegMatch[3];
-    int iErrorNo;
-    /* char sTemp[LINELEN]; */
+static char *parseQualifier(char *psQualifier, char **psValue) {
+    char *sPosition;
+
+    for (;isspace(*psQualifier); psQualifier++);
+
+    if ((sPosition = strchr(psQualifier, '=')) == NULL) return sPosition;
+
+    *sPosition = '\0';
+
+    sPosition++;
+
+    for (;isspace(*psQualifier); psQualifier++);
+
+    if (*sPosition == '"') {
+        sPosition++;
+        rtrim2(sPosition, '"');
+    }
+
+    *psValue = sPosition;
+
+    return psQualifier;
+}
+
+static void QualifierParser(char *psQualifier, struct tFeature *pFeature) {
+    char *sValue;
     char *psTemp = NULL;
     char *psString = NULL;
     struct tQualifier *ptQualifier;
@@ -261,41 +286,26 @@ void QualifierParser(char *psQualifier, struct tFeature *pFeature) {
     ptQualifier = pFeature->ptQualifier;
 
     /* Parse the 1st qualifier string */
-    psTemp = strtok_r(psQualifier, "\n", &psString);
-    /* printf("%s\n", psTemp); */
-    ptQualifier->psQualifier = psTemp;
-    ptQualifier->psValue = psTemp;
-    if ((iErrorNo = regexec(&ptRegexQualifier, psTemp, 3, ptRegMatch, 0)) == 0) {
-        *(psTemp + ptRegMatch[1].rm_eo) = '\0';
-        *(psTemp + ptRegMatch[2].rm_eo) = '\0';
-        ptQualifier->psValue = psTemp + ptRegMatch[2].rm_so;
-    /*
-    } else {
-        regerror(iErrorNo, &ptRegexQualifier, sTemp, LINELEN);
-        fprintf(stderr, "%s\n", sTemp);
-        exit(1);
-    */
+    psString = strtok_r(psQualifier, "\n", &psTemp);
+
+    /* printf("%s\n", psString); */
+
+    if ((psQualifier = parseQualifier(psString, &sValue)) != NULL) {
+        ptQualifier->psQualifier = psQualifier;
+        ptQualifier->psValue = sValue;
     }
-    /* printf("%s %s\n", ptQualifier->psQualifier, ptQualifier->psValue); */
+    /* printf("%s ----- %s\n", ptQualifier->psQualifier, ptQualifier->psValue); */
     ptQualifier++;
     
     /* Parse the rest qualifier string */
-    while((psTemp = strtok_r(NULL, "\n", &psString))) {
-        /* printf("%s\n", psTemp); */
-        ptQualifier->psQualifier = psTemp;
-        ptQualifier->psValue = psTemp;
-        if ((iErrorNo = regexec(&ptRegexQualifier, psTemp, 3, ptRegMatch, 0)) == 0) {
-            *(psTemp + ptRegMatch[1].rm_eo) = '\0';
-            *(psTemp + ptRegMatch[2].rm_eo) = '\0';
-            ptQualifier->psValue = psTemp + ptRegMatch[2].rm_so;
-        /*
-        } else {
-            regerror(iErrorNo, &ptRegexQualifier, sTemp, LINELEN);
-            fprintf(stderr, "%s\n", sTemp);
-            exit(1);
-        */
+    while((psString = strtok_r(NULL, "\n", &psTemp))) {
+        /* printf("%s\n", psString); */
+        
+        if ((psQualifier = parseQualifier(psString, &sValue)) != NULL) {
+            ptQualifier->psQualifier = psQualifier;
+            ptQualifier->psValue = sValue;
         }
-        /* printf("%s %s\n", ptQualifier->psQualifier, ptQualifier->psValue); */
+        /* printf("%s ----- %s\n", ptQualifier->psQualifier, ptQualifier->psValue); */
         ptQualifier++;
     }
 
@@ -303,7 +313,7 @@ void QualifierParser(char *psQualifier, struct tFeature *pFeature) {
     pFeature->ptQualifier =  realloc(pFeature->ptQualifier, pFeature->iQualifierNum * sizeof(struct tQualifier));
 }
 
-unsigned int SequenceParser(char *psSequence, char *psSequence2) {
+static unsigned int SequenceParser(char *psSequence, char *psSequence2) {
     register unsigned int i = 0;
     register unsigned int j = 0;
     register char c;
@@ -316,7 +326,7 @@ unsigned int SequenceParser(char *psSequence, char *psSequence2) {
     return j;
 }
 
-void RevCom(char *psSequence) {
+static void RevCom(char *psSequence) {
     char c;
     unsigned int k;
     unsigned long i, j;
@@ -390,7 +400,7 @@ void GBFF_Free(struct tGBFFData **pptGBFFData) {
     free(tpFeatures);
 }
 
-struct tGBFFData *_GBFF_Parser(FILE *FSeqFile) {
+static struct tGBFFData *_GBFF_Parser(FILE *FSeqFile) {
     char sLine[LINELEN] = {'\0',};
     char sLocation[LINELEN] = {'\0',};
     char *psQualifier = NULL;
@@ -418,9 +428,10 @@ struct tGBFFData *_GBFF_Parser(FILE *FSeqFile) {
 
     /* If there is a no LOCUS line, next statement return NULL value to end parsing */
     if (ptGBFFData == NULL) return NULL;
-    
+   
+    /* Parse LOCUS line */ 
     LocusParser(sLine, ptGBFFData);
-    
+
     while(fgets(sLine, LINELEN, FSeqFile))
         if (memcmp(sLine, "FEATURES", 8) == 0) break;
 
@@ -522,7 +533,7 @@ struct tGBFFData *_GBFF_Parser(FILE *FSeqFile) {
 }
 
 struct tGBFFData **GBFF_Parser(char *spFileName) {
-    int iGBFSeqPos = -1;
+    int iGBFSeqPos = 0;
     unsigned int iGBFSeqNum = INITGBFSEQNUM;
     struct tGBFFData **pptGBFFDatas;
     FILE *FSeqFile;
@@ -538,21 +549,17 @@ struct tGBFFData **GBFF_Parser(char *spFileName) {
         }
     }
     
-    InitRegEx();
+    pptGBFFDatas = malloc(iGBFSeqNum * sizeof(struct tGBFFData *));
 
-    pptGBFFDatas = malloc(iGBFSeqNum * sizeof(struct tGBFFData*));
-
-    while (1) {
+    do {
         if (iGBFSeqNum == iGBFSeqPos) {
             iGBFSeqNum += INITGBFSEQNUM;
-            pptGBFFDatas = realloc(pptGBFFDatas, iGBFSeqNum * sizeof(struct tGBFFData*));
+            pptGBFFDatas = realloc(pptGBFFDatas, iGBFSeqNum * sizeof(struct tGBFFData *));
         }
-        iGBFSeqPos++;
         *(pptGBFFDatas + iGBFSeqPos) = _GBFF_Parser(FSeqFile);
-        if (*(pptGBFFDatas + iGBFSeqPos) == NULL) break;
-    }
+    } while (*(pptGBFFDatas + iGBFSeqPos++));
     
-    if (spFileName != NULL) fclose(FSeqFile);
+    if (spFileName) fclose(FSeqFile);
 
     return pptGBFFDatas;
 }
