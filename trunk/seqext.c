@@ -18,14 +18,13 @@ void help(void) {
 }
 
 int main(int argc, char *argv[]) {
-    char *psFileName = NULL;
-    char *psFeature = "gene";
-    char *psQualifier = NULL;
+    char *sFileName = NULL;
+    char *sFeature = "gene";
+    char *sQualifier = NULL;
     
-    struct tGBFFData **pptSeqData;
-    struct tGBFFData *ptSeqData;
-    struct tFeature *ptFeature;
-    struct tQualifier *ptQualifier;
+    gbdata **pptSeqData, *ptSeqData;
+    feature *ptFeature;
+    qualifier *ptQualifier;
 
     unsigned int iOpt;
     unsigned int i, j, k;
@@ -37,13 +36,13 @@ int main(int argc, char *argv[]) {
             exit(0);
             break;
         case 'i':
-            psFileName = optarg;
+            sFileName = optarg;
             break;
         case 'f':
-            psFeature = optarg;
+            sFeature = optarg;
             break;
         case 'q':
-            psQualifier = optarg;
+            sQualifier = optarg;
             break;
         default:
             help();
@@ -51,28 +50,28 @@ int main(int argc, char *argv[]) {
         }
     }
  
-    pptSeqData = GBFF_Parser(psFileName);
+    pptSeqData = parseGBFF(sFileName);
     if (pptSeqData != NULL) {
         for (i = 0; (ptSeqData = *(pptSeqData + i)) != NULL; i++) {
             for (j = 0; j < ptSeqData->iFeatureNumber; j++) {
                 ptFeature = (ptSeqData->ptFeatures + j);
-                if (strcmp(psFeature, ptFeature->sFeature) == 0) {
-                    if (psQualifier == NULL) {
+                if (strcmp(sFeature, ptFeature->sFeature) == 0) {
+                    if (sQualifier == NULL) {
                         printf(">%s_%li_%li\n", \
                             ptFeature->sFeature, \
                             ptFeature->lStart, \
                             ptFeature->lEnd);
-                        printf("%s\n", GBFF_Get_Sequence(ptSeqData->psSequence, ptFeature));
+                        printf("%s\n", getSequence(ptSeqData->sSequence, ptFeature));
                     } else {
                         for (k = 0; k < ptFeature->iQualifierNum; k++) {
                             ptQualifier = (ptFeature->ptQualifier + k);
-                            if (strcmp(psQualifier, ptQualifier->psQualifier) == 0) {
+                            if (strcmp(sQualifier, ptQualifier->sQualifier) == 0) {
                                 printf(">%s_%li_%li %s\n", \
                                     ptFeature->sFeature, \
                                     ptFeature->lStart, \
                                     ptFeature->lEnd, \
-                                    ptQualifier->psValue);
-                                printf("%s\n", GBFF_Get_Sequence(ptSeqData->psSequence, ptFeature));
+                                    ptQualifier->sValue);
+                                printf("%s\n", getSequence(ptSeqData->sSequence, ptFeature));
                                 break;
                             }
                         }
@@ -80,7 +79,7 @@ int main(int argc, char *argv[]) {
                 }
             }
         }
-        GBFF_Free(pptSeqData);
+        freeGBData(pptSeqData);
     }
 
     return 0;

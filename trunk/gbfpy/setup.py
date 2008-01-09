@@ -1,8 +1,8 @@
 from distutils.core import setup, Extension 
  
-setup(name = "gbfp", 
+setup(name = "gbfpy", 
         version = "0.1", 
         description="gbff parser extension module", 
         author = "Tae-ho Lee", 
-        ext_modules=[Extension("gbfp", ["gbfp.python.c", "gbfp.c"])] 
+        ext_modules=[Extension("gbfpy", ["gbfpy.c", "gbfp.c"])] 
 ) 

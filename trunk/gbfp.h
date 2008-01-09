@@ -25,17 +25,19 @@
 #define LONG                'L'
 #define STRING              'S'
 
-struct tLocation {
+typedef char *string;
+
+typedef struct tLocation {
     unsigned long lStart;
     unsigned long lEnd;
-};
+} location;
 
-struct tQualifier {
-    char *psQualifier;
-    char *psValue;
-};
+typedef struct tQualifier {
+    string sQualifier;
+    string sValue;
+} qualifier;
 
-struct tFeature {
+typedef struct tFeature {
     char sFeature[FEATURELEN + 1];
     char cDirection;
     unsigned long lStart;
@@ -43,22 +45,31 @@ struct tFeature {
     unsigned int iNumber;
     unsigned int iLocationNum;
     unsigned int iQualifierNum;
-    struct tLocation *ptLocation;
-    struct tQualifier *ptQualifier;
-};
+    location *ptLocation;
+    qualifier *ptQualifier;
+} feature;
 
-struct tGBFFData {
+typedef struct tVersion {
+    string sVersion;
+    string sGI;
+} version;
+
+typedef struct tGBFFData {
     char sLocusName[LOCUSLEN + 1];
     unsigned long lLength;
     char sType[TYPELEN + 1];
     char sTopology[TOPOLOGYSTRLEN + 1];
     char sDivisionCode[DIVISIONCODELEN + 1];
     char sDate[DATESTRLEN + 1];
-    struct tFeature *ptFeatures;
+    feature *ptFeatures;
     unsigned int iFeatureNumber;
-    char *psSequence;
-};
+    string sDef;
+    string sAccession;
+    version tVersion;
+    string sKeywords;
+    string sSequence;
+} gbdata;
 
-struct tGBFFData **GBFF_Parser(char *spFileName);
-void GBFF_Free(struct tGBFFData **pptGBFFData);
-char *GBFF_Get_Sequence(char *psSequence, struct tFeature *ptFeature);
+gbdata **parseGBFF(string spFileName);
+void freeGBData(gbdata **pptGBFFData);
+string getSequence(string sSequence, feature *ptFeature);
