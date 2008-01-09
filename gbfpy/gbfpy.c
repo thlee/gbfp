@@ -33,10 +33,10 @@ PyObject* MakeQualifierList(qualifier *ptQualifier, unsigned int iQualifierNum) 
 
     for (i = 0; i < iQualifierNum; i++) {
         ptQualData = ptQualifier + i;
-        
+
         QualifierTuple = PyTuple_New(2);
-        PyTuple_SetItem(QualifierTuple, 0, PyString_FromString(ptQualData->psQualifier));
-        PyTuple_SetItem(QualifierTuple, 1, PyString_FromString(ptQualData->psValue));
+        PyTuple_SetItem(QualifierTuple, 0, PyString_FromString(ptQualData->sQualifier));
+        PyTuple_SetItem(QualifierTuple, 1, PyString_FromString(ptQualData->sValue));
         PyList_Append(QualifierList, QualifierTuple);
     }
 
@@ -76,7 +76,7 @@ PyObject* MakeGBFFDataDict(gbdata *ptGBFFData) {
     PyDict_SetItemString(GBFFDataDict, "division_code", PyString_FromString((char *) &(ptGBFFData->sDivisionCode)));
     PyDict_SetItemString(GBFFDataDict, "date", PyString_FromString((char *) &(ptGBFFData->sDate)));
     PyDict_SetItemString(GBFFDataDict, "feature_num", PyInt_FromLong((long) ptGBFFData->iFeatureNumber));
-    PyDict_SetItemString(GBFFDataDict, "sequence", PyString_FromString(ptGBFFData->psSequence));
+    PyDict_SetItemString(GBFFDataDict, "sequence", PyString_FromString(ptGBFFData->sSequence));
 
     FeatureList = PyList_New(0);
 
@@ -107,10 +107,13 @@ static PyObject* parse(PyObject *self, PyObject *args) {
         /* Convert datas from C to Python */
         GBFFDataList = PyList_New(0);
 
-        for (i = 0; *(pptGBFFData + i) != NULL; i++) \
+        for (i = 0; *(pptGBFFData + i) != NULL; i++) {
             PyList_Append(GBFFDataList, MakeGBFFDataDict(*(pptGBFFData + i)));
+        }
 
+        /*
         freeGBData(pptGBFFData);
+        */
         
         return GBFFDataList;
     } else {
