@@ -3,9 +3,9 @@
 
 static PyObject *ErrorObject;
 
-PyObject* MakeLocationList(struct tLocation *ptLocation, unsigned int iLocationNum) {
+PyObject* MakeLocationList(location *ptLocation, unsigned int iLocationNum) {
     unsigned int i;
-    struct tLocation *ptLocData;
+    location *ptLocData;
     PyObject *LocationList;
     PyObject *LocationTuple;
 
@@ -23,9 +23,9 @@ PyObject* MakeLocationList(struct tLocation *ptLocation, unsigned int iLocationN
     return LocationList;
 }
 
-PyObject* MakeQualifierList(struct tQualifier *ptQualifier, unsigned int iQualifierNum) {
+PyObject* MakeQualifierList(qualifier *ptQualifier, unsigned int iQualifierNum) {
     unsigned int i;
-    struct tQualifier *ptQualData;
+    qualifier *ptQualData;
     PyObject *QualifierList;
     PyObject *QualifierTuple;
 
@@ -43,7 +43,7 @@ PyObject* MakeQualifierList(struct tQualifier *ptQualifier, unsigned int iQualif
     return QualifierList;
 }
 
-PyObject* MakeFeatureDict(struct tFeature *ptFeature) {
+PyObject* MakeFeatureDict(feature *ptFeature) {
     PyObject *FeatureDict;
 
     FeatureDict =  PyDict_New();
@@ -61,7 +61,7 @@ PyObject* MakeFeatureDict(struct tFeature *ptFeature) {
    return FeatureDict; 
 }
 
-PyObject* MakeGBFFDataDict(struct tGBFFData *ptGBFFData) {
+PyObject* MakeGBFFDataDict(gbdata *ptGBFFData) {
     int i;
 
     PyObject *GBFFDataDict;
@@ -93,7 +93,7 @@ static PyObject* parse(PyObject *self, PyObject *args) {
     int i;
     char *psFileName;
 
-    struct tGBFFData **pptGBFFData;
+    gbdata **pptGBFFData;
 
     PyObject *GBFFDataList;
 
@@ -101,7 +101,7 @@ static PyObject* parse(PyObject *self, PyObject *args) {
     if (!PyArg_ParseTuple(args, "s", &psFileName)) return NULL;
     
     /* Parsing with C function */
-    pptGBFFData = GBFF_Parser(psFileName);
+    pptGBFFData = parseGBFF(psFileName);
 
     if (pptGBFFData != NULL) {
         /* Convert datas from C to Python */
@@ -110,7 +110,7 @@ static PyObject* parse(PyObject *self, PyObject *args) {
         for (i = 0; *(pptGBFFData + i) != NULL; i++) \
             PyList_Append(GBFFDataList, MakeGBFFDataDict(*(pptGBFFData + i)));
 
-        GBFF_Free(pptGBFFData);
+        freeGBData(pptGBFFData);
         
         return GBFFDataList;
     } else {
@@ -120,13 +120,13 @@ static PyObject* parse(PyObject *self, PyObject *args) {
     }
 }         
  
-static struct PyMethodDef gbfp_methods[] = { 
+static struct PyMethodDef gbfpy_methods[] = { 
     {"parse", parse, METH_VARARGS},
     {NULL, NULL}
 };
 
-void initgbfp(void) {
+void initgbfpy(void) {
     PyObject *parser; 
-    parser = Py_InitModule("gbfp", gbfp_methods);
+    parser = Py_InitModule("gbfpy", gbfpy_methods);
     ErrorObject = Py_BuildValue("s", "GBFF parser error !!!");
 } 
