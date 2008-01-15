@@ -22,9 +22,9 @@ int main(int argc, char *argv[]) {
     char *sFeature = "gene";
     char *sQualifier = NULL;
     
-    gbdata **pptSeqData, *ptSeqData;
-    feature *ptFeature;
-    qualifier *ptQualifier;
+    gb_data **pptSeqData, *ptSeqData;
+    gb_feature *ptFeature;
+    gb_qualifier *ptQualifier;
 
     unsigned int iOpt;
     unsigned int i, j, k;
@@ -53,7 +53,8 @@ int main(int argc, char *argv[]) {
     pptSeqData = parseGBFF(sFileName);
     if (pptSeqData != NULL) {
         for (i = 0; (ptSeqData = *(pptSeqData + i)) != NULL; i++) {
-            for (j = 0; j < ptSeqData->iFeatureNumber; j++) {
+            /* printf("%s\n", (ptSeqData->ptReferences)->sAuthors); */
+            for (j = 0; j < ptSeqData->iFeatureNum; j++) {
                 ptFeature = (ptSeqData->ptFeatures + j);
                 if (strcmp(sFeature, ptFeature->sFeature) == 0) {
                     if (sQualifier == NULL) {
