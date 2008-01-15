@@ -10,13 +10,39 @@
 #include <sys/types.h>
  
 #include "gbfp.h"
- 
-const char sVer[] = "0.3.0";
+
+const char sVer[] = "0.5.0";
 const char sNorBase[] = "ACGTRYMKWSBDHVNacgtrymkwsbdhvn";
 const char sComBase[] = "TGCAYRKMWSVHDBNtgcayrkmwsvhdbn";
 const unsigned int iBaseLen = 30;
+char sTempLine[LINELEN] = {'\0',};
+regex_t ptRegExLocus;
+regex_t ptRegExOneLine;
+regex_t ptRegExAccession;
+regex_t ptRegExVersion;
+regex_t ptRegExRegion;
+regex_t ptRegExGI;
 
-static void rtrim(string sLine) {
+#define skipSpace( x ) for (; isspace(*x); x++)
+#define putLine( x ) strcpy(sTempLine, x)
+#define getLine_w_rtrim( x, y ) \
+    getLine(x, y); \
+    rtrim(x)
+
+static gb_string getLine(gb_string sLine, FILE *FSeqFile) {
+    gb_string sReturn;
+
+    if (*sTempLine != '\0') {
+        sReturn = strcpy(sLine, sTempLine);
+        *sTempLine = '\0';
+    } else {
+        sReturn = fgets(sLine, LINELEN, FSeqFile);
+    }
+
+    return sReturn;
+}
+
+static void rtrim(gb_string sLine) {
     register int i;
     
     for (i = (strlen(sLine) - 1); i >= 0; i--) {
@@ -27,7 +53,7 @@ static void rtrim(string sLine) {
     }
 }
 
-static void rtrim2(string sLine, char cRemove) {
+static void removeRChar(gb_string sLine, char cRemove) {
     register int i;
     
     for (i = (strlen(sLine) - 1); i >= 0; i--) {
@@ -38,7 +64,45 @@ static void rtrim2(string sLine, char cRemove) {
     }
 }
 
-static int Pos2Num(string sPositions, int aiPositions[]) {
+static gb_string joinLines(FILE *FSeqFile, unsigned int iSpaceLen) {
+    char sLine[LINELEN];
+    gb_string sTemp, sJoinedLine;
+
+    sJoinedLine = malloc(sizeof(char) * LINELEN);
+
+    getLine_w_rtrim(sLine, FSeqFile);
+    strcpy(sJoinedLine, sLine + iSpaceLen);
+
+    while (fgets(sLine, LINELEN, FSeqFile)) {
+        sTemp = sLine;
+        skipSpace(sTemp);
+        if ((sTemp - sLine) < iSpaceLen) break;
+        rtrim(sTemp);
+        sJoinedLine = strcat(sJoinedLine, sTemp - 1); /* '- 1' in order to insert a space character at the juncation */
+    }
+
+    putLine(sLine); 
+
+    return realloc(sJoinedLine, sizeof(char) * (strlen(sJoinedLine) + 1));
+}
+
+void initRegEx(void) {
+    const char sLocus[] = "^LOCUS +([a-z|A-Z|0-9|_]+) +([0-9]+) bp +([a-z|A-Z|-]+) +([a-z]+) +([A-Z]{3}) (.+)";
+    const char sOneLine[] = "^ *([A-Z]+) +(.+)";
+    const char sAccession[] = "^ACCESSION +([a-z|A-Z|0-9|_]+) ?";
+    const char sRegion[] = " +REGION: ?([0-9]+)\\.\\.([0-9]+)";
+    const char sVersion[] = "^VERSION +([a-z|A-Z|0-9|_.]+) ?";
+    const char sGI[] = " +GI: ?([0-9]+)";
+ 
+    regcomp(&ptRegExLocus, sLocus, REG_EXTENDED | REG_ICASE);
+    regcomp(&ptRegExOneLine, sOneLine, REG_EXTENDED | REG_ICASE);
+    regcomp(&ptRegExAccession, sAccession, REG_EXTENDED | REG_ICASE);
+    regcomp(&ptRegExVersion, sVersion, REG_EXTENDED | REG_ICASE);
+    regcomp(&ptRegExRegion, sRegion, REG_EXTENDED | REG_ICASE);
+    regcomp(&ptRegExGI, sGI, REG_EXTENDED | REG_ICASE);
+}
+
+static int Pos2Num(gb_string sPositions, int aiPositions[]) {
     register int i;
     int iNum = 0;
 
@@ -50,7 +114,7 @@ static int Pos2Num(string sPositions, int aiPositions[]) {
     return iNum;
 }
 
-static int Positions2Numbers(string sPositions, unsigned long *lStart, unsigned long *lEnd) {
+static int Positions2Numbers(gb_string sPositions, unsigned long *lStart, unsigned long *lEnd) {
     int aiPositions[16] = {-2,};
     int iNum;
 
@@ -73,7 +137,7 @@ static int Positions2Numbers(string sPositions, unsigned long *lStart, unsigned 
 
 }
 
-static void LocusParser(string sLocusStr, gbdata *ptGBData) {
+static void parseLocus(gb_string sLocusStr, gb_data *ptGBData) {
     /*    
     01-05      'LOCUS'
     06-12      spaces
@@ -96,13 +160,10 @@ static void LocusParser(string sLocusStr, gbdata *ptGBData) {
     69-79      Date, in the form dd-MMM-yyyy (e.g., 15-MAR-1991)
     */
     
-    regex_t ptRegExLocus;
-    regmatch_t ptRegMatch[7];
-    
-    const char sLocus[] = "LOCUS +([a-z|A-Z|0-9|_]+) +([0-9]+) bp +([a-z|A-Z|-]+) +([a-z]+) +([A-Z]{3}) (.+)";
     char sTemp[LINELEN];
-    unsigned int i, iLen;
+    unsigned int i, iErr, iLen;
     
+    regmatch_t ptRegMatch[7];
     
     struct tData {
         char cType;
@@ -123,26 +184,16 @@ static void LocusParser(string sLocusStr, gbdata *ptGBData) {
     tDatas[3].Pointer = ptGBData->sTopology;
     tDatas[4].Pointer = ptGBData->sDivisionCode;
     tDatas[5].Pointer = ptGBData->sDate;
-
-    i = regcomp(&ptRegExLocus, sLocus, REG_EXTENDED | REG_ICASE);
-    if (i != 0) {
-        regerror(i, &ptRegExLocus, sTemp, LINELEN);
-        fprintf(stderr, "%s\n", sTemp);
-        exit(1);
-    }
     
     rtrim(sLocusStr);
         
-    if (regexec(&ptRegExLocus, sLocusStr, 7, ptRegMatch, 0) == 0) {
+    if ((iErr = regexec(&ptRegExLocus, sLocusStr, 7, ptRegMatch, 0)) == 0) {
         for (i = 0; i < 6; i++) {
             iLen = ptRegMatch[i + 1].rm_eo - ptRegMatch[i + 1].rm_so;
             switch (tDatas[i].cType) {
             case STRING:
                 memcpy(tDatas[i].Pointer, (sLocusStr + ptRegMatch[i + 1].rm_so), iLen);
-                *((string ) tDatas[i].Pointer + iLen) = '\0';
-                /*
-                printf("%i, %s\n", iLen, (string ) tDatas[i].Pointer);
-                */
+                *((gb_string ) tDatas[i].Pointer + iLen) = '\0';
                 break;
             case LONG:
                 memcpy(sTemp, (sLocusStr + ptRegMatch[i + 1].rm_so), iLen);
@@ -154,21 +205,21 @@ static void LocusParser(string sLocusStr, gbdata *ptGBData) {
             }
         }
     } else {
-        regerror(i, &ptRegExLocus, sTemp, LINELEN);
+        regerror(iErr, &ptRegExLocus, sTemp, LINELEN);
         fprintf(stderr, "%s\n", sTemp);
         exit(1);
     }
 }
 
-static string checkComplement(string sLocation) {
-    string sPosition;
+static gb_string checkComplement(gb_string sLocation) {
+    gb_string sPosition;
 
-    for (;isspace(*sLocation);sLocation++);
+    skipSpace(sLocation);
 
     for (sPosition = sLocation; *sPosition; sPosition++) {
         /* Check the 1st and the 2nd characters of 'complement' */
         if (*sPosition == 'c' && *(sPosition + 1) == 'o') {
-            rtrim2(sLocation, ')');
+            removeRChar(sLocation, ')');
             return sPosition + 11;
         }
     }
@@ -176,15 +227,15 @@ static string checkComplement(string sLocation) {
     return sLocation;
 }
 
-static string checkJoin(string sLocation) {
-    string sPosition;
+static gb_string checkJoin(gb_string sLocation) {
+    gb_string sPosition;
 
-    for (;isspace(*sLocation);sLocation++);
+    skipSpace(sLocation);
 
     for (sPosition = sLocation; *sPosition; sPosition++) {
         /* Check the 1st and the 2nd characters of 'complement' */
         if (*sPosition == 'j' && *(sPosition + 1) == 'o') {
-            rtrim2(sLocation, ')');
+            removeRChar(sLocation, ')');
             return sPosition + 5;
         }
     }
@@ -192,16 +243,15 @@ static string checkJoin(string sLocation) {
     return sLocation;
 }
 
-/* Parsing a string which contains location information */
-
-static void LocationParser(string sLocation, feature *pFeature) {
-    string sTemp;
-    string sString = NULL;
+/* Parsing a gb_string that contains gb_location information */
+static void LocationParser(gb_string sLocation, gb_feature *pFeature) {
+    gb_string sTemp;
+    gb_string sString = NULL;
     
     unsigned int iLocationNum = 1;
     
     /* Evalue sequence direction
-    sString has location and join informations
+    sString has gb_location and join informations
     */
 
     sString = checkComplement(sLocation);
@@ -209,8 +259,8 @@ static void LocationParser(string sLocation, feature *pFeature) {
     if (sLocation == sString) pFeature->cDirection = NORMAL;
     else pFeature->cDirection = REVCOM;
 
-    /* Remove 'join' string
-    sString has location informations
+    /* Remove 'join' gb_string
+    sString has gb_location informations
     */
 
     sString = checkJoin(sString);
@@ -236,10 +286,10 @@ static void LocationParser(string sLocation, feature *pFeature) {
     pFeature->iLocationNum = iLocationNum;
 }
 
-static string parseQualifier(string sQualifier, string *psValue) {
-    string sPosition;
+static gb_string parseQualifier(gb_string sQualifier, gb_string *psValue) {
+    gb_string sPosition;
 
-    for (;isspace(*sQualifier); sQualifier++);
+    skipSpace(sQualifier);
 
     if ((sPosition = strchr(sQualifier, '=')) == NULL) {
         *psValue = sQualifier + strlen(sQualifier);
@@ -250,11 +300,11 @@ static string parseQualifier(string sQualifier, string *psValue) {
 
     sPosition++;
 
-    for (;isspace(*sQualifier); sQualifier++);
+    skipSpace(sQualifier);
 
     if (*sPosition == '"') {
         sPosition++;
-        rtrim2(sPosition, '"');
+        removeRChar(sPosition, '"');
     }
 
     *psValue = sPosition;
@@ -262,16 +312,16 @@ static string parseQualifier(string sQualifier, string *psValue) {
     return sQualifier;
 }
 
-static void QualifierParser(string sQualifier, feature *pFeature) {
-    string sValue;
-    string sTemp = NULL;
-    string sString = NULL;
-    qualifier *ptQualifier;
+static void QualifierParser(gb_string sQualifier, gb_feature *pFeature) {
+    gb_string sValue;
+    gb_string sTemp = NULL;
+    gb_string sString = NULL;
+    gb_qualifier *ptQualifier;
     
-    pFeature->ptQualifier = malloc(INITQUALIFIERNUM * sizeof(qualifier));
+    pFeature->ptQualifier = malloc(INITQUALIFIERNUM * sizeof(gb_qualifier));
     ptQualifier = pFeature->ptQualifier;
 
-    /* Parse the 1st qualifier string */
+    /* Parse the 1st gb_qualifier gb_string */
     sString = strtok_r(sQualifier, "\n", &sTemp);
 
     sQualifier = parseQualifier(sString, &sValue);
@@ -280,7 +330,7 @@ static void QualifierParser(string sQualifier, feature *pFeature) {
     ptQualifier->sValue = sValue;
     ptQualifier++;
     
-    /* Parse the rest qualifier string */
+    /* Parse the rest gb_qualifier gb_string */
     while((sString = strtok_r(NULL, "\n", &sTemp)) != NULL) {
         sQualifier = parseQualifier(sString, &sValue);
         ptQualifier->sQualifier = sQualifier;
@@ -289,10 +339,10 @@ static void QualifierParser(string sQualifier, feature *pFeature) {
     }
 
     pFeature->iQualifierNum = ptQualifier - pFeature->ptQualifier;
-    pFeature->ptQualifier =  realloc(pFeature->ptQualifier, pFeature->iQualifierNum * sizeof(qualifier));
+    pFeature->ptQualifier =  realloc(pFeature->ptQualifier, pFeature->iQualifierNum * sizeof(gb_qualifier));
 }
 
-static unsigned int SequenceParser(string sSequence, string sSequence2) {
+static unsigned int SequenceParser(gb_string sSequence, gb_string sSequence2) {
     register unsigned int i = 0;
     register unsigned int j = 0;
     register char c;
@@ -305,7 +355,7 @@ static unsigned int SequenceParser(string sSequence, string sSequence2) {
     return j;
 }
 
-static void RevCom(string sSequence) {
+static void RevCom(gb_string sSequence) {
     char c;
     unsigned int k;
     unsigned long i, j;
@@ -327,11 +377,11 @@ static void RevCom(string sSequence) {
     }
 }
 
-string getSequence(string sSequence, feature *ptFeature) {
+gb_string getSequence(gb_string sSequence, gb_feature *ptFeature) {
     unsigned long lSeqLen = 1; /* For the '\0' characher */
     unsigned long lStart, lEnd;
     unsigned int i;
-    string sSequenceTemp;
+    gb_string sSequenceTemp;
     
     for (i = 0; i < ptFeature->iLocationNum; i++)
         lSeqLen += (((ptFeature->ptLocation) + i)->lEnd - ((ptFeature->ptLocation) + i)->lStart + 1);
@@ -354,100 +404,39 @@ string getSequence(string sSequence, feature *ptFeature) {
     return sSequenceTemp;
 }
 
-void freeGBData(gbdata **pptGBData) {
-    gbdata *ptGBData = NULL;
-    feature *tpFeatures = NULL;
-    unsigned int iFeatureNumber = 0;
-    unsigned int iFeatureNum = 0;
-    unsigned int iSeqPos = 0;
-  
-    for (iSeqPos = 0; *(pptGBData + iSeqPos) != NULL; iSeqPos++) {
-        ptGBData = *(pptGBData + iSeqPos);
-
-        tpFeatures = ptGBData->ptFeatures;
-        iFeatureNumber = ptGBData->iFeatureNumber;
-    
-        for (iFeatureNum = 0; iFeatureNum < iFeatureNumber; iFeatureNum++) {
-            /*
-            printf("%i, %i\n", iFeatureNum, (tpFeatures+iFeatureNum)->iQualifierNum);
-            */
-            free((tpFeatures+iFeatureNum)->ptLocation);
-            free(((tpFeatures+iFeatureNum)->ptQualifier)->sQualifier);
-        }
-    }
-
-    free(tpFeatures);
-}
-
-static gbdata *_GBFF_Parser(FILE *FSeqFile) {
+static void parseFeature(FILE *FSeqFile, gb_data *ptGBData) {
     char sLine[LINELEN] = {'\0',};
     char sLocation[LINELEN] = {'\0',};
-    string sQualifier = NULL;
-    string sQualifierTemp = NULL;
-   
+    gb_string sQualifier = NULL;
+    gb_string sQualifierTemp = NULL;
     unsigned int iReadPos = INELSE;
     unsigned int iFeatureNum = 0;
     unsigned int iFeatureMem = INITFEATURENUM;
     unsigned int i = 0;
-    unsigned long lSeqLen;
+    gb_feature *pFeatures = NULL;
+    gb_feature *pFeature = NULL;
     
-    feature *pFeatures = NULL;
-    feature *pFeature = NULL;
-    gbdata *ptGBData = NULL;
-    
-    pFeatures = (feature *) malloc(iFeatureMem * sizeof(feature));
-
-    /* Confirming GBFF File with LOCUS line */
-    while(fgets(sLine, LINELEN, FSeqFile)) {
-        if (memcmp(sLine, "LOCUS", 5) == 0) {
-            ptGBData = malloc(sizeof(gbdata));
-            break;
-        }
-    }
-
-    /* If there is a no LOCUS line, next statement return NULL value to end parsing */
-    if (ptGBData == NULL) return NULL;
-   
-    /* Parse LOCUS line */ 
-    LocusParser(sLine, ptGBData);
-
-    while(fgets(sLine, LINELEN, FSeqFile))
-        if (memcmp(sLine, "FEATURES", 8) == 0) break;
+    pFeatures = (gb_feature *) malloc(iFeatureMem * sizeof(gb_feature));
 
     /* Parse FEATURES */
     while(fgets(sLine, LINELEN, FSeqFile)) {
-        rtrim(sLine);
-
-        if (memcmp(sLine, "BASE COUNT", 10) == 0 || memcmp(sLine, "ORIGIN", 6) == 0) {
-            if (iFeatureNum == iFeatureMem) {
-                iFeatureMem += INITFEATURENUM;
-                pFeatures = realloc(pFeatures, sizeof(feature) * iFeatureMem);
-            }
-
-            if (strlen(sLocation) != 0) LocationParser(sLocation, (pFeatures + iFeatureNum - 1));
-            if (sQualifier < sQualifierTemp) {
-                *sQualifierTemp++ = '\n';
-                *sQualifierTemp = '\0';
-                sQualifier = realloc(sQualifier, (sQualifierTemp - sQualifier + 1) * sizeof(*sQualifier));
-                QualifierParser(sQualifier, (pFeatures + iFeatureNum - 1));
-            }
-            
+        if (! isspace(*sLine)) {
+            putLine(sLine);
             break;
         }
         
+        rtrim(sLine);
         if (memcmp(sLine + 5, "               ", 15) != 0) {
             if (iFeatureNum == iFeatureMem) {
                 iFeatureMem += INITFEATURENUM;
-                pFeatures = realloc(pFeatures, sizeof(feature) * iFeatureMem);
+                pFeatures = realloc(pFeatures, sizeof(gb_feature) * iFeatureMem);
             }
 
             if (strlen(sLocation) != 0) LocationParser(sLocation, (pFeatures + iFeatureNum - 1));
             if (sQualifier < sQualifierTemp) {
                 *sQualifierTemp++ = '\n';
                 *sQualifierTemp = '\0';
-                /*
-                printf("=====\n%s=====", sQualifier);
-                */
+                /* printf("=====\n%s=====", sQualifier); */
                 sQualifier = realloc(sQualifier, (sQualifierTemp - sQualifier + 1) * sizeof(*sQualifier));
                 QualifierParser(sQualifier, (pFeatures + iFeatureNum - 1));
             }
@@ -465,7 +454,7 @@ static gbdata *_GBFF_Parser(FILE *FSeqFile) {
 
             /* Feature Initalize */
             pFeature = pFeatures + iFeatureNum;
-            pFeature->iNumber = iFeatureNum;
+            pFeature->iNum = iFeatureNum;
             pFeature->cDirection = NORMAL;
             pFeature->iLocationNum = 0;
             pFeature->lStart = 0;
@@ -491,30 +480,278 @@ static gbdata *_GBFF_Parser(FILE *FSeqFile) {
             }
         }
     }
-    
-    if (memcmp(sLine, "ORIGIN", 6) != 0)
-        while(fgets(sLine, LINELEN, FSeqFile))
-            if (memcmp(sLine, "ORIGIN", 6) == 0) break;
+
+    /* Finishing of the parsing */
+
+    if (iFeatureNum == iFeatureMem) {
+        iFeatureMem += INITFEATURENUM;
+        pFeatures = realloc(pFeatures, sizeof(gb_feature) * iFeatureMem);
+    }
+
+    if (strlen(sLocation) != 0) LocationParser(sLocation, (pFeatures + iFeatureNum - 1));
+    if (sQualifier < sQualifierTemp) {
+        *sQualifierTemp++ = '\n';
+        *sQualifierTemp = '\0';
+        sQualifier = realloc(sQualifier, (sQualifierTemp - sQualifier + 1) * sizeof(*sQualifier));
+        QualifierParser(sQualifier, (pFeatures + iFeatureNum - 1));
+    }
+
+    ptGBData->iFeatureNum = iFeatureNum;
+    ptGBData->ptFeatures = pFeatures;
+}
+
+/* Parse sequences */
+static void parseSequence(FILE *FSeqFile, gb_data *ptGBData) {
+    char sLine[LINELEN] = {'\0',};
+    unsigned long lSeqLen;
 
     lSeqLen = 0;
     ptGBData->sSequence = malloc((ptGBData->lLength + 1) * sizeof(char));
     
     while(fgets(sLine, LINELEN, FSeqFile)) {
-        if (memcmp(sLine, "//", 2) == 0) break;
-
+        if (memcmp(sLine, "//", 2) == 0) {
+            putLine(sLine);
+            break;
+        }
         lSeqLen += SequenceParser(sLine, ptGBData->sSequence + lSeqLen);
     }
+}
 
-    ptGBData->iFeatureNumber = iFeatureNum;
-    ptGBData->ptFeatures = pFeatures;
+static void parseDef(FILE *FSeqFile, gb_data *ptGBData) {
+    char sLine[LINELEN];
+    regmatch_t ptRegMatch[3];
+
+    getLine_w_rtrim(sLine, FSeqFile);
+
+    regexec(&ptRegExOneLine, sLine, 3, ptRegMatch, 0);
+    ptGBData->sDef = strdup(sLine + ptRegMatch[2].rm_so);
+}
+
+static void parseKeywords(FILE *FSeqFile, gb_data *ptGBData) {
+    char sLine[LINELEN];
+    regmatch_t ptRegMatch[3];
+
+    getLine_w_rtrim(sLine, FSeqFile);
+
+    regexec(&ptRegExOneLine, sLine, 3, ptRegMatch, 0);
+    ptGBData->sKeywords = strdup(sLine + ptRegMatch[2].rm_so);
+}
+
+static void parseAccession(FILE *FSeqFile, gb_data *ptGBData) {
+    char sLine[LINELEN];
+    regmatch_t ptRegMatch[3];
+
+    getLine_w_rtrim(sLine, FSeqFile);
+
+    if (regexec(&ptRegExAccession, sLine, 2, ptRegMatch, 0) == 0) {
+        *(sLine + ptRegMatch[1].rm_eo) = '\0';
+        ptGBData->sAccession = strdup(sLine + ptRegMatch[1].rm_so);
+    }
+
+    if (regexec(&ptRegExRegion, sLine + ptRegMatch[1].rm_eo + 1, 3, ptRegMatch, 0) == 0) {
+        *(sLine + ptRegMatch[1].rm_eo) = '\0';
+        (ptGBData->lRegion)[0] = atol(sLine + ptRegMatch[1].rm_so);
+        *(sLine + ptRegMatch[2].rm_eo) = '\0';
+        (ptGBData->lRegion)[1] = atol(sLine + ptRegMatch[2].rm_so);
+    }
+}
+
+static void parseVersion(FILE *FSeqFile, gb_data *ptGBData) {
+    char sLine[LINELEN];
+    regmatch_t ptRegMatch[2];
+
+    getLine_w_rtrim(sLine, FSeqFile);
+
+    if (regexec(&ptRegExVersion, sLine, 2, ptRegMatch, 0) == 0) {
+        *(sLine + ptRegMatch[1].rm_eo) = '\0';
+        ptGBData->sVersion = strdup(sLine + ptRegMatch[1].rm_so);
+    }
+    if (regexec(&ptRegExGI, sLine + ptRegMatch[1].rm_eo + 1, 2, ptRegMatch, 0) == 0) {
+        *(sLine + ptRegMatch[1].rm_eo) = '\0';
+        ptGBData->sGI = strdup(sLine + ptRegMatch[1].rm_so);
+    }
+}
+
+static void parseComment(FILE *FSeqFile, gb_data *ptGBData) {
+    ptGBData->sComment = joinLines(FSeqFile, 12);
+}
+
+static void parseSource(FILE *FSeqFile, gb_data *ptGBData) {
+    char sLine[LINELEN];
+    regmatch_t ptRegMatch[3];
+
+    getLine_w_rtrim(sLine, FSeqFile);
+    regexec(&ptRegExOneLine, sLine, 3, ptRegMatch, 0);
+    ptGBData->sSource = strdup(sLine + ptRegMatch[2].rm_so);
+
+    getLine_w_rtrim(sLine, FSeqFile);
+    regexec(&ptRegExOneLine, sLine, 3, ptRegMatch, 0);
+    ptGBData->sOrganism = strdup(sLine + ptRegMatch[2].rm_so);
+
+    ptGBData->sLineage = joinLines(FSeqFile, 12);
+}
+
+#define processRef( x, y ) \
+    y = NULL; \
+    getLine_w_rtrim(sLine, FSeqFile); \
+    putLine(sLine); \
+    if (strstr(sLine, x) != NULL) y = joinLines(FSeqFile, 12)
+
+static void parseReference(FILE *FSeqFile, gb_data *ptGBData) {
+    char sLine[LINELEN];
+    regmatch_t ptRegMatch[3];
+    gb_reference *ptReferences = NULL;
+    gb_reference *ptReference = NULL;
+    unsigned int iReferenceNum = 0;
+
+    ptReferences = ptGBData->ptReferences;
+    iReferenceNum = ptGBData->iReferenceNum;
+
+    ptReferences = realloc(ptReferences, sizeof(gb_reference) * (iReferenceNum + 1));
+    ptReference = ptReferences + iReferenceNum;
+
+    getLine_w_rtrim(sLine, FSeqFile);
+    regexec(&ptRegExOneLine, sLine, 3, ptRegMatch, 0);
+    ptReference->iNum = atoi(sLine + ptRegMatch[2].rm_so);
+
+    processRef("AUTHORS", ptReference->sAuthors);
+    processRef("TITLE", ptReference->sTitle);
+    processRef("CONSTRM", ptReference->sConsrtm);
+    processRef("JOURNAL", ptReference->sJournal);
+    processRef("PUBMED", ptReference->sPubMed);
+
+    ptGBData->ptReferences = ptReferences;
+    ptGBData->iReferenceNum = iReferenceNum + 1;
+}
+
+static void initGBData(gb_data *ptGBData) {
+    ptGBData->sAccession = NULL;
+    ptGBData->sComment = NULL;
+    ptGBData->sDef = NULL;
+    ptGBData->sGI = NULL;
+    ptGBData->sKeywords = NULL;
+    ptGBData->sLineage = NULL;
+    ptGBData->sOrganism = NULL;
+    ptGBData->sSequence = NULL;
+    ptGBData->sSource = NULL;
+    ptGBData->sVersion = NULL;
+    ptGBData->ptReferences = NULL;
+    ptGBData->ptFeatures = NULL;
+    ptGBData->iFeatureNum = 0;
+    ptGBData->iReferenceNum = 0;
+    ptGBData->lLength = 0;
+    ptGBData->lRegion[0] = 0;
+    ptGBData->lRegion[1] = 0;
+    ptGBData->sLocusName[0] = '\0';
+    ptGBData->sType[0] = '\0';
+    ptGBData->sTopology[0] = '\0';
+    ptGBData->sDivisionCode[0] = '\0';
+    ptGBData->sDate[0] = '\0';
+}
+
+static gb_data *_parseGBFF(FILE *FSeqFile) {
+    int i;
+    char sLine[LINELEN] = {'\0',};
+    gb_data *ptGBData = NULL;
+
+    struct tField {
+        char sField[FIELDLEN + 1];
+        void (*vFunction)(FILE *FSeqFile, gb_data *ptGBData);
+    } atFields[] = {
+        {"DEFINITION", parseDef},
+        {"ACCESSION", parseAccession},
+        {"VERSION", parseVersion},
+        {"KEYWORDS", parseKeywords},
+        {"SOURCE", parseSource},
+        {"REFERENCE", parseReference},
+        {"COMMENT", parseComment},
+        {"FEATURE", parseFeature},
+        {"ORIGIN", parseSequence},
+        {"", NULL} /* To terminate seeking */
+    };
+
+    /* Confirming GBFF File with LOCUS line */
+    while(fgets(sLine, LINELEN, FSeqFile)) {
+        if (strstr(sLine, "LOCUS") == sLine) {
+            ptGBData = malloc(sizeof(gb_data));
+            initGBData(ptGBData);
+            break;
+        }
+    }
+
+    /* If there is a no LOCUS line, next statement return NULL value to end parsing */
+    if (ptGBData == NULL) return NULL;
+   
+    /* Parse LOCUS line */ 
+    parseLocus(sLine, ptGBData);
+
+    while(getLine(sLine, FSeqFile)) {
+        if (strstr(sLine, "//") == sLine) break;
+        for(i = 0; *((atFields + i)->sField); i++) {
+            if (strstr(sLine, (atFields + i)->sField) == sLine) {
+                putLine(sLine);
+                ((atFields + i)->vFunction)(FSeqFile, ptGBData);
+                break;
+            }
+        }
+    }
     
     return ptGBData;
 }
 
-gbdata **parseGBFF(string spFileName) {
+#define freeString( x ) if (x != NULL) free(x)
+
+void freeGBData(gb_data **pptGBData) {
+    int i;
+    gb_data *ptGBData = NULL;
+    gb_feature *ptFeatures = NULL;
+    gb_reference *ptReferences = NULL;
+    unsigned int iFeatureNum = 0;
+    unsigned int iReferenceNum = 0;
+    unsigned int iSeqPos = 0;
+  
+    for (iSeqPos = 0; *(pptGBData + iSeqPos) != NULL; iSeqPos++) {
+        ptGBData = *(pptGBData + iSeqPos);
+
+        ptFeatures = ptGBData->ptFeatures;
+        iFeatureNum = ptGBData->iFeatureNum;
+    
+        for (i = 0; i < iFeatureNum; i++) {
+            /* printf("%i, %i\n", iFeatureNum, (ptFeatures+iFeatureNum)->iQualifierNum); */
+            free((ptFeatures + i)->ptLocation);
+            free(((ptFeatures + i)->ptQualifier)->sQualifier);
+        }
+
+        free(ptFeatures);
+
+
+        ptReferences = ptGBData->ptReferences;
+        iReferenceNum = ptGBData->iReferenceNum;
+        for (i = 0; i < iReferenceNum; i++) {
+            freeString((ptReferences + i)->sAuthors);
+            freeString((ptReferences + i)->sConsrtm);
+            freeString((ptReferences + i)->sTitle);
+            freeString((ptReferences + i)->sJournal);
+            freeString((ptReferences + i)->sPubMed);
+        }
+
+        freeString(ptGBData->sDef);
+        freeString(ptGBData->sAccession);
+        freeString(ptGBData->sComment);
+        freeString(ptGBData->sGI);
+        freeString(ptGBData->sKeywords);
+        freeString(ptGBData->sLineage);
+        freeString(ptGBData->sOrganism);
+        freeString(ptGBData->sSequence);
+        freeString(ptGBData->sSource);
+        freeString(ptGBData->sVersion);
+    }
+}
+
+gb_data **parseGBFF(gb_string spFileName) {
     int iGBFSeqPos = 0;
     unsigned int iGBFSeqNum = INITGBFSEQNUM;
-    gbdata **pptGBDatas;
+    gb_data **pptGBDatas;
     FILE *FSeqFile;
  
     if (spFileName == NULL) {
@@ -527,15 +764,17 @@ gbdata **parseGBFF(string spFileName) {
             FSeqFile = fopen(spFileName, "r");
         }
     }
-    
-    pptGBDatas = malloc(iGBFSeqNum * sizeof(gbdata *));
+   
+    initRegEx(); /* Initalize for regular expression */
+
+    pptGBDatas = malloc(iGBFSeqNum * sizeof(gb_data *));
 
     do {
         if (iGBFSeqNum == iGBFSeqPos) {
             iGBFSeqNum += INITGBFSEQNUM;
-            pptGBDatas = realloc(pptGBDatas, iGBFSeqNum * sizeof(gbdata *));
+            pptGBDatas = realloc(pptGBDatas, iGBFSeqNum * sizeof(gb_data *));
         }
-        *(pptGBDatas + iGBFSeqPos) = _GBFF_Parser(FSeqFile);
+        *(pptGBDatas + iGBFSeqPos) = _parseGBFF(FSeqFile);
     } while (*(pptGBDatas + iGBFSeqPos++) != NULL);
     
     if (spFileName) fclose(FSeqFile);
