@@ -168,9 +168,7 @@ static void parseLocus(gb_string sLocusStr, gb_data *ptGBData) {
     struct tData {
         char cType;
         void *Pointer;
-    };
-    
-    struct tData tDatas[] = {
+    } tDatas[] = {
         {STRING, NULL},
         {LONG, NULL},
         {STRING, NULL},
@@ -509,7 +507,7 @@ static void parseSequence(FILE *FSeqFile, gb_data *ptGBData) {
     ptGBData->sSequence = malloc((ptGBData->lLength + 1) * sizeof(char));
     
     while(fgets(sLine, LINELEN, FSeqFile)) {
-        if (memcmp(sLine, "//", 2) == 0) {
+        if (*sLine == '/' && *(sLine + 1) == '/') {
             putLine(sLine);
             break;
         }
