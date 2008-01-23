@@ -1,5 +1,5 @@
+#summary How to install
 #labels Phase-Deploy
-#How to install
 
 = Install =
   # Download the compressed library.
