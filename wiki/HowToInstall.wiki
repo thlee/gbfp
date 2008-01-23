@@ -3,4 +3,4 @@
 
 = Install =
   # Download the compressed library.
-    * []
+    * [http://gbfp.googlecode.com/files/gbfp-0.5.3.tar.gz gbfp-0.5.3.tar.gz]
