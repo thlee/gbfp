@@ -1,6 +1,27 @@
 #summary How to install
 #labels Phase-Deploy
 
-= Install =
+= Install GBFP and GBFPY =
+== Common Process ==
  # Download the compressed library.
  * [http://gbfp.googlecode.com/files/gbfp-0.5.3.tar.gz gbfp-0.5.3.tar.gz]
+ # Uncompress the file into a directory which you want.
+{{{
+$ tar xvfz gbfp-0.5.3.tar.gz
+}}}
+== Install GBFP ==
+ # Make and install the library
+{{{
+$ cd gbfp-0.5.3
+$ make
+$ make install (as a root)
+$ cd ..
+}}}
+== Install GBFPY ==
+ # Make and install the library
+{{{
+$ cd gbfp-0.5.3/gbfpy
+$ python setup.py build
+$ python setup.py install (as a root)
+$ cd ../..
+}}}
