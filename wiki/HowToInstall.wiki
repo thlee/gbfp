@@ -3,9 +3,9 @@
 
 = Install GBFP and GBFPY =
 == Common Process ==
-  # Download the compressed library.
- * [http://gbfp.googlecode.com/files/gbfp-0.5.3.tar.gz gbfp-0.5.3.tar.gz]
-  # Uncompress the file into a directory which you want.
+ # Download the compressed library.
+  * [http://gbfp.googlecode.com/files/gbfp-0.5.3.tar.gz gbfp-0.5.3.tar.gz]
+ # Uncompress the file into a directory which you want.
 {{{
 $ tar xvfz gbfp-0.5.3.tar.gz
 }}}
