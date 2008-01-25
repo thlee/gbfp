@@ -1,27 +1,91 @@
-#summary How to install
+#summary PyGTK, Python and PySQLite install instruction for RedHat 8
 #labels Phase-Deploy
 
-= Install GBFP and GBFPY =
-== Common Process ==
- # Download the compressed library.
-  * [http://gbfp.googlecode.com/files/gbfp-0.5.3.tar.gz gbfp-0.5.3.tar.gz]
- # Uncompress the file into a directory which you want.
+== PyGTK, Python and PySQLite install instruction for RedHat 8 ==
+ #. GTK+
 {{{
-$ tar xvfz gbfp-0.5.3.tar.gz
-}}}
-== Install GBFP ==
-  # Make and install the library
-{{{
-$ cd gbfp-0.5.3
+$ wget ftp://fr.rpmfind.net/linux/redhat/9/en/os/i386/SRPMS/freetype-2.1.3-6.src.rpm
+$ rpmbuild --rebuild freetype-2.1.3-6.src.rpm
+$ wget ftp://fr.rpmfind.net/linux/redhat/9/en/os/i386/SRPMS/fontconfig-2.1-9.src.rpm
+$ rpmbuild --rebuild fontconfig-2.1-9.src.rpm
+$ pushd /usr/src/redhat/RPMS/i386/
+$ rpm -Uvh freetype*.rpm fontconfig*.rpm
+$ rm -f *.rpm
+$ popd
+
+$ wget ftp://rpmfind.net/linux/redhat/updates/enterprise/3AS/en/os/SRPMS/XFree86-4.3.0-81.EL.src.rpm
+$ rpmbuild --rebuild XFree86-4.3.0-81.EL.src.rpm
+$ pushd /usr/src/redhat/RPMS/i386/
+$ rpm -Uvh --nodeps XFree86*.rpm
+$ rm -f *.rpm
+$ popd
+
+$ wget http://pkgconfig.freedesktop.org/releases/pkg-config-0.19.tar.gz
+$ tar xvfz pkg-config-0.19.tar.gz
+$ pushd pkg-config-0.19
+$ ./configure --prefix=/usr
 $ make
-$ make install (as a root)
-$ cd ..
+$ make install
+$ popd
+
+$ while read url
+do
+    file=$(basename ${url})
+    name=${file%.tar.bz2}
+    wget ${url}
+    tar xvfj ${file}
+    pushd ${name}
+    ./configure --prefix=/usr
+    make
+    make install
+    popd
+done <<URL
+ftp://ftp.gtk.org/pub/gtk/v2.6/glib-2.6.5.tar.bz2
+ftp://ftp.gtk.org/pub/gtk/v2.6/atk-1.9.0.tar.bz2
+ftp://ftp.gtk.org/pub/gtk/v2.6/pango-1.8.1.tar.bz2
+ftp://ftp.gtk.org/pub/gtk/v2.6/gtk+-2.6.8.tar.bz2
+http://ftp.gnome.org/pub/GNOME/sources/glade/2.10/glade-2.10.0.tar.bz2
+http://ftp.gnome.org/pub/GNOME/sources/libglade/2.5/libglade-2.5.1.tar.bz2
+URL
+
+$ wget http://icon-theme.freedesktop.org/releases/hicolor-icon-theme-0.8.tar.gz
+$ tar xvfz hicolor-icon-theme-0.8.tar.gz
+$ pushd hicolor-icon-theme-0.8
+$ ./configure
+$ make install
+$ popd
 }}}
-== Install GBFPY ==
-  # Make and install the module
+ #. Python
 {{{
-$ cd gbfp-0.5.3/gbfpy
-$ python setup.py build
-$ python setup.py install (as a root)
-$ cd ../..
+$ wget http://www.python.org/ftp/python/2.4.1/rpms/python2.4-2.4.1-1pydotorg.src.rpm
+$ rpmbuild --rebuild python2.4-2.4.1-1pydotorg.src.rpm
+$ rpm -Uvh /usr/src/redhat/RPMS/i386/python2.4-*.i386.rpm
+}}}
+ 1. PyGTK
+ {{{
+$ wget http://ftp.gnome.org/pub/GNOME/sources/pygtk/2.6/pygtk-2.6.2.tar.bz2
+$ tar xvfj pygtk-2.6.2.tar.bz2
+$ pushd pygtk-2.6.2
+$ ./configure --prefix=/usr
+$ make
+$ make install
+$ popd ..
+}}}
+ #. SQLite
+{{{
+$ wget http://www.sqlite.org/sqlite-2.8.16.tar.gz
+$ tar xvfz sqlite-2.8.16.tar.gz
+$ pushd sqlite-2.8.16
+$ ./configure --prefix=/usr
+$ make
+$ make install
+$ popd
+}}}
+ #. PySQLite
+{{{
+$ wget http://initd.org/pub/software/pysqlite/releases/1.0/1.0.1/pysqlite-1.0.1.tar.gz
+$ tar xvfz pysqlite-1.0.1.tar.gz
+$ pushd pysqlite
+$ python setup.py install
+$ popd
 }}}
