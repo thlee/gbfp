@@ -1,6 +1,7 @@
 #summary Example for the GBParsyPy
 #labels Phase-Implementation,GBParsyPy,Python
 
+ *  Source code of a example program, seqext.py.
 {{{
 #!/usr/bin/python
 #filename: seqext.py
