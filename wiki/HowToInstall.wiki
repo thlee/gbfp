@@ -1,7 +1,7 @@
 #summary How to install
 #labels Phase-Deploy
 
-= Install GBFP and GBFPY =
+= Install GBParsy and GBParsyPy =
 == Common Process ==
  # Download the compressed library.
   * [http://gbfp.googlecode.com/files/gbfp-0.5.3.tar.gz gbfp-0.5.3.tar.gz]
@@ -9,7 +9,7 @@
 {{{
 $ tar xvfz gbfp-0.5.3.tar.gz
 }}}
-== Install GBFP ==
+== Install GBParsy ==
   # Make and install the library
 {{{
 $ cd gbfp-0.5.3
@@ -17,7 +17,7 @@ $ make
 $ make install (as a root)
 $ cd ..
 }}}
-== Install GBFPY ==
+== Install GBParsyPy ==
   # Make and install the module
 {{{
 $ cd gbfp-0.5.3/gbfpy
