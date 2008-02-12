@@ -2,6 +2,8 @@
 #labels Phase-Implementation,GBParsy,C
 
 {{{
+/* filename: seqext.c */
+
 #define __EXTENSIONS__
 
 #include <stdio.h>
