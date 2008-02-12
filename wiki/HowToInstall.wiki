@@ -25,7 +25,7 @@ $ python setup.py build
 $ python setup.py install (as a root)
 $ cd ../..
 }}}
-== Compile example program ==
+== Install example program ==
  # Make and install the example program, seqext
 {{{
 $ cd gbfp-0.5.4/example
