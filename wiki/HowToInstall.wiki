@@ -7,12 +7,12 @@
   * [http://gbfp.googlecode.com/files/gbfp-0.5.3.tar.gz gbfp-0.5.3.tar.gz]
  # Uncompress the file into a directory which you want.
 {{{
-$ tar xvfz gbfp-0.5.3.tar.gz
+$ tar xvfz gbparsy-0.5.4.tar.gz
 }}}
 == Install GBParsy ==
   # Make and install the library
 {{{
-$ cd gbfp-0.5.3
+$ cd gbparsy-0.5.3
 $ make
 $ make install (as a root)
 $ cd ..
@@ -20,7 +20,7 @@ $ cd ..
 == Install GBParsyPy ==
   # Make and install the module
 {{{
-$ cd gbfp-0.5.3/gbfpy
+$ cd gbparsy-0.5.3/gbparsypy
 $ python setup.py build
 $ python setup.py install (as a root)
 $ cd ../..
