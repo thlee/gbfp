@@ -2,77 +2,87 @@
 #labels Phase-Implementation,GBParsy,C
 
 {{{
-#!/usr/bin/python
+#define __EXTENSIONS__
 
-import sys
-import gbfpy
-import getopt
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <regex.h>
+#include <unistd.h>
+#include <string.h>
+#include <zlib.h>
+#include <gbfp.h>
+ 
+void help(void) {
+        printf("Extract specific feature from a GenBank flat file.\n"
+        "\n"
+        "Usage: seqext [-h] [-i Genbank_file] [-f Feature to extract (default: gene)] [-q Qualifier to print]\n"
+        "\n"
+        "-h  print help and exit\n");
+}
 
-def help(iCode=0):
-    print """Extract specific feature from a GenBank flat file.
+static char *getQualValue(char *sQualifier, gb_feature *ptFeature) {
+    static char *null = "";
+    gb_qualifier *i;
 
-Usage: seqext [-h] [-i Genbank_file] [-f Feature to extract (default: gene)] [-q Qualifier to print]
+    for (i = ptFeature->ptQualifier; (i - ptFeature->ptQualifier) < ptFeature->iQualifierNum; i++) 
+        if (strcmp(sQualifier, i->sQualifier) == 0)
+            return i->sValue;
+    return null;
+}
 
--h  print help and exit"""
-    sys.exit(iCode)
-
-sNorBase = "ACGTRYMKWSBDHVNacgtrymkwsbdhvn";
-sComBase = "TGCAYRKMWSVHDBNtgcayrkmwsvhdbn";
-
-def getRevCom(sSequence):
-    lSequence = map(lambda x: sComBase[sNorBase.find(x)], sSequence)
-    lSequence.reverse()
-
-    return "".join(lSequence)
-
-def getQualValue(sQualifier, dFeature):
-    if not sQualifier: return ""
-
-    for tQualifier in dFeature["qualifiers"]:
-        if tQualifier[0] == sQualifier: return tQualifier[1]
-
-    return ""
-
-def getSequence(sWholeSequence, dFeature):
-    sSequence = sWholeSequence[dFeature["start"] - 1: dFeature["end"]]
-    if dFeature["direction"] == "C":
-        sSequence = getRevCom(sSequence)
-
-    return sSequence
+int main(int argc, char *argv[]) {
+    char *sFileName = NULL;
+    char *sFeature = "gene";
+    char *sQualifier = NULL;
+    char *sSequence = NULL;
     
-try:
-    lOpts, lArgs = getopt.getopt(sys.argv[1:], "f:i:q:h")
-except:
-    help()
+    gb_data **pptSeqData, *ptSeqData;
+    gb_feature *ptFeature;
 
-sFileName = None
-sFeature = "gene"
-sQualifier = None
-sSequence = None
+    unsigned int iOpt;
+    unsigned int i, j;
     
-for sOpt, sVal in lOpts:
-    if sOpt == "-h":
-        help(1)
-    elif sOpt == "-i":
-        sFileName = sVal
-    elif sOpt == "-f":
-        sFeature = sVal
-    elif sOpt == "-q":
-        sQualifier = sVal
-    else:
-        help()
-   
-lSeqData = gbfpy.parse(sFileName) # parse a GBF file which contains more than one GBF sequence data
+    while((iOpt = getopt(argc, argv, "f:i:q:h")) != -1) {
+        switch(iOpt) {
+        case 'h':
+            help();
+            exit(0);
+            break;
+        case 'i':
+            sFileName = optarg;
+            break;
+        case 'f':
+            sFeature = optarg;
+            break;
+        case 'q':
+            sQualifier = optarg;
+            break;
+        default:
+            help();
+            exit(0);
+        }
+    }
+ 
+    pptSeqData = parseGBFF(sFileName); /* parse a GBF file which contains more than one GBF sequence data */
+    for (i = 0; (ptSeqData = *(pptSeqData + i)) != NULL; i++) { /* ptSeqData points a parsed data of a GBF sequence data */
+        /* start of user process */
+        for (j = 0; j < ptSeqData->iFeatureNum; j++) {
+            ptFeature = (ptSeqData->ptFeatures + j);
+            if (strcmp(sFeature, ptFeature->sFeature) == 0) {
+                printf(">%s_%li-%li %s\n%s\n", \
+                    ptFeature->sFeature, \
+                    ptFeature->lStart, \
+                    ptFeature->lEnd, \
+                    sQualifier == NULL ? "" : getQualValue(sQualifier, ptFeature), \
+                    sSequence = getSequence(ptSeqData->sSequence, ptFeature));
+                free(sSequence);
+            }
+        }
+        /* end of user process */
+    }
+    freeGBData(pptSeqData); /* release memory space */
 
-for dSeqData in lSeqData: # dSeqData has a parsed data of a GBF sequence data
-    # start of user process
-    for dFeature in dSeqData["features"]:
-        if dFeature["feature"] == sFeature:
-            sys.stdout.write(">%s_%i-%i %s\n%s\n" % (
-                dFeature["feature"],
-                dFeature["start"],
-                dFeature["end"],
-                getQualValue(sQualifier, dFeature),
-                getSequence(dSeqData["sequence"], dFeature)))
-    # end of user process
+    return 0;
+}
 }}}
