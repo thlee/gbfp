@@ -4,15 +4,15 @@
 = Install GBParsy and GBParsyPy =
 == Common Process ==
  # Download the compressed library.
-  * [http://gbfp.googlecode.com/files/gbparsy-0.5.4.tar.gz gbparsy-0.5.4.tar.gz]
+  * [http://gbfp.googlecode.com/files/gbfp-0.5.4.tar.gz gbfp-0.5.4.tar.gz]
  # Uncompress the file into a directory which you want.
 {{{
-$ tar xvfz gbparsy-0.5.4.tar.gz
+$ tar xvfz gbfp-0.5.4.tar.gz
 }}}
 == Install GBParsy ==
   # Make and install the library
 {{{
-$ cd gbparsy-0.5.3
+$ cd gbfp-0.5.4
 $ make
 $ make install (as a root)
 $ cd ..
@@ -20,7 +20,7 @@ $ cd ..
 == Install GBParsyPy ==
   # Make and install the module
 {{{
-$ cd gbparsy-0.5.3/gbparsypy
+$ cd gbfp-0.5.4/gbfpy
 $ python setup.py build
 $ python setup.py install (as a root)
 $ cd ../..
