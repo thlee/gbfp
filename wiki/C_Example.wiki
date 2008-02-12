@@ -88,3 +88,32 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 }}}
+
+ * Makefile to compile 'seqext.c'
+{{{
+CC = gcc
+CFLAGS = -O2 -Wall -ansi -pedantic
+DEBUG = -ggdb -pg
+
+prefix = /usr/local
+bindir = $(prefix)/bin
+
+all: seqext
+
+install: seqext
+        if [ ! -d $(bindir) ]; then mkdir -p $(bindir); fi
+        cp -f seqext $(bindir)
+        chmod 755 $(bindir)/seqext
+
+uninstall:
+        rm -f $(bindir)/seqext
+
+seqext: seqext.c
+        $(CC) $(CFLAGS) -D_GNU_SOURCE -o seqext seqext.c -lgbfp
+
+debug: seqext.c
+        $(CC) $(CFLAGS) $(DEBUG) -D_GNU_SOURCE -o seqext seqext.c -lgbfp
+
+clean:
+        rm -f seqext
+}}}
