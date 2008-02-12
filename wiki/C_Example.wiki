@@ -1,6 +1,7 @@
 #summary Example for the GBparsy
 #labels Phase-Implementation,GBParsy,C
 
+ * Source code of a example program, seqext.
 {{{
 /* filename: seqext.c */
 
