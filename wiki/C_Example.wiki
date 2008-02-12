@@ -1,0 +1,78 @@
+#summary Example for the GBparsy
+#labels Phase-Implementation,GBParsy,C
+
+{{{
+#!/usr/bin/python
+
+import sys
+import gbfpy
+import getopt
+
+def help(iCode=0):
+    print """Extract specific feature from a GenBank flat file.
+
+Usage: seqext [-h] [-i Genbank_file] [-f Feature to extract (default: gene)] [-q Qualifier to print]
+
+-h  print help and exit"""
+    sys.exit(iCode)
+
+sNorBase = "ACGTRYMKWSBDHVNacgtrymkwsbdhvn";
+sComBase = "TGCAYRKMWSVHDBNtgcayrkmwsvhdbn";
+
+def getRevCom(sSequence):
+    lSequence = map(lambda x: sComBase[sNorBase.find(x)], sSequence)
+    lSequence.reverse()
+
+    return "".join(lSequence)
+
+def getQualValue(sQualifier, dFeature):
+    if not sQualifier: return ""
+
+    for tQualifier in dFeature["qualifiers"]:
+        if tQualifier[0] == sQualifier: return tQualifier[1]
+
+    return ""
+
+def getSequence(sWholeSequence, dFeature):
+    sSequence = sWholeSequence[dFeature["start"] - 1: dFeature["end"]]
+    if dFeature["direction"] == "C":
+        sSequence = getRevCom(sSequence)
+
+    return sSequence
+    
+try:
+    lOpts, lArgs = getopt.getopt(sys.argv[1:], "f:i:q:h")
+except:
+    help()
+
+sFileName = None
+sFeature = "gene"
+sQualifier = None
+sSequence = None
+    
+for sOpt, sVal in lOpts:
+    if sOpt == "-h":
+        help(1)
+    elif sOpt == "-i":
+        sFileName = sVal
+    elif sOpt == "-f":
+        sFeature = sVal
+    elif sOpt == "-q":
+        sQualifier = sVal
+    else:
+        help()
+   
+lSeqData = gbfpy.parse(sFileName) # parse a GBF file which contains more than one GBF sequence data
+
+for dSeqData in lSeqData: # dSeqData has a parsed data of a GBF sequence data
+    # start of user process
+    for dFeature in dSeqData["features"]:
+        if dFeature["feature"] == sFeature:
+            sys.stdout.write(">%s_%i-%i %s\n%s\n" % (
+                dFeature["feature"],
+                dFeature["start"],
+                dFeature["end"],
+                getQualValue(sQualifier, dFeature),
+                getSequence(dSeqData["sequence"], dFeature)))
+    # end of user process
+}}}
