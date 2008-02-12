@@ -3,6 +3,7 @@
 
 {{{
 #!/usr/bin/python
+#filename: seqext.py
 
 import sys
 import gbfpy
