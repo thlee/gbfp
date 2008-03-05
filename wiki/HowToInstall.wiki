@@ -7,7 +7,7 @@
   * [http://gbfp.googlecode.com/files/gbfp-0.5.4.tar.gz gbfp-0.5.4.tar.gz]
  # Uncompress the file into a directory which you want.
 {{{
-$ tar xvfz gbfp-0.5.4.tar.gz
+$ tar xvfz gbfp-0.5.4.tgz
 }}}
 == Install GBParsy ==
   # Make and install the library
