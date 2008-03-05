@@ -1,5 +1,5 @@
 #summary How to install
-#labels Phase-Deploy
+#labels Phase-Deploy,Featured
 
 = Install GBParsy and GBParsyPy =
 == Common Process ==
