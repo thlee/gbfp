@@ -1,10 +1,12 @@
+#summary Data Structure of GBParsy
 #labels Phase-Design,Phase-Implementation
-#Data Structure of GBParsy
 
-= GBParsy =
+= Diagram of Data Structure =
+
+== GBParsy ==
 
 [http://gbfp.googlecode.com/svn/wiki/GBParsy_C.png]
 
-= GBParsyPy =
+== GBParsyPy ==
 
 [http://gbfp.googlecode.com/svn/wiki/GBParsy_Python.png]
