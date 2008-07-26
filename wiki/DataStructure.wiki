@@ -5,4 +5,8 @@
 
 == GBParsy ==
 
-[http://gbfp.googlecode.com/svn/wiki/GBParsy_C.png]
+[http://gbfp.googlecode.com/svn/wiki/GBParsy.png]
+
+== GBParsyPy ==
+
+[http://gbfp.googlecode.com/svn/wiki/GBParsy.png]
