@@ -9,4 +9,4 @@
 
 == GBParsyPy ==
 
-[http://gbfp.googlecode.com/svn/wiki/GBParsy.png]
+[http://gbfp.googlecode.com/svn/wiki/GBParsyPy.png]
