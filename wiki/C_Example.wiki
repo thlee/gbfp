@@ -13,13 +13,12 @@
 #include <regex.h>
 #include <unistd.h>
 #include <string.h>
-#include <zlib.h>
 #include <gbfp.h>
  
 void help(void) {
         printf("Extract specific feature from a GenBank flat file.\n"
         "\n"
-        "Usage: seqext [-h] [-i Genbank_file] [-f Feature to extract (default: gene)] [-q Qualifier to print]\n"
+        "Usage: seqext [-h] [-i Genbank_file] [-f Feature to extract (default: gene)] [-q Qualifier to print | -s Word to search]\n"
         "\n"
         "-h  print help and exit\n");
 }
@@ -34,11 +33,22 @@ static char *getQualValue(char *sQualifier, gb_feature *ptFeature) {
     return null;
 }
 
+static char *searchQualValue(char *sWord, gb_feature *ptFeature) {
+    gb_qualifier *i;
+
+    for (i = ptFeature->ptQualifier; (i - ptFeature->ptQualifier) < ptFeature->iQualifierNum; i++) 
+        if (strstr(sWord, i->sValue) != NULL)
+            return i->sValue;
+    return NULL;
+}
+
 int main(int argc, char *argv[]) {
     char *sFileName = NULL;
     char *sFeature = "gene";
     char *sQualifier = NULL;
     char *sSequence = NULL;
+    char *sWord = NULL;
+    char *sValue = NULL;
     
     gb_data **pptSeqData, *ptSeqData;
     gb_feature *ptFeature;
@@ -46,7 +56,7 @@ int main(int argc, char *argv[]) {
     unsigned int iOpt;
     unsigned int i, j;
     
-    while((iOpt = getopt(argc, argv, "f:i:q:h")) != -1) {
+    while((iOpt = getopt(argc, argv, "f:i:q:s:h")) != -1) {
         switch(iOpt) {
         case 'h':
             help();
@@ -61,6 +71,9 @@ int main(int argc, char *argv[]) {
         case 'q':
             sQualifier = optarg;
             break;
+        case 's':
+            sWord = optarg;
+            break;
         default:
             help();
             exit(0);
@@ -73,13 +86,27 @@ int main(int argc, char *argv[]) {
         for (j = 0; j < ptSeqData->iFeatureNum; j++) {
             ptFeature = (ptSeqData->ptFeatures + j);
             if (strcmp(sFeature, ptFeature->sFeature) == 0) {
-                printf(">%s_%li-%li %s\n%s\n", \
-                    ptFeature->sFeature, \
-                    ptFeature->lStart, \
-                    ptFeature->lEnd, \
-                    sQualifier == NULL ? "" : getQualValue(sQualifier, ptFeature), \
-                    sSequence = getSequence(ptSeqData->sSequence, ptFeature));
-                free(sSequence);
+                if (sWord != NULL) {
+                    if ((sValue = searchQualValue(sWord, ptFeature)) != NULL) {
+                        printf(">%s_%li-%li_%c %s\n%s\n", \
+                            ptFeature->sFeature, \
+                            ptFeature->lStart, \
+                            ptFeature->lEnd, \
+                            ptFeature->cDirection, \
+                            sValue == NULL ? "" : sValue, \
+                            sSequence = getSequence(ptSeqData->sSequence, ptFeature));
+                        free(sSequence);
+                    }
+                } else {
+                    printf(">%s_%li-%li_%c %s\n%s\n", \
+                        ptFeature->sFeature, \
+                        ptFeature->lStart, \
+                        ptFeature->lEnd, \
+                        ptFeature->cDirection, \
+                        sQualifier == NULL ? "" : getQualValue(sQualifier, ptFeature), \
+                        sSequence = getSequence(ptSeqData->sSequence, ptFeature));
+                    free(sSequence);
+                }
             }
         }
         /* end of user process */
@@ -88,6 +115,7 @@ int main(int argc, char *argv[]) {
 
     return 0;
 }
+
 }}}
 
  * Makefile to compile 'seqext.c'
