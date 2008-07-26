@@ -7,13 +7,13 @@
 #filename: seqext.py
 
 import sys
-import gbfpy
 import getopt
+import gbparsy
 
 def help(iCode=0):
     print """Extract specific feature from a GenBank flat file.
 
-Usage: seqext [-h] [-i Genbank_file] [-f Feature to extract (default: gene)] [-q Qualifier to print]
+Usage: seqext [-h] [-i Genbank_file] [-f Feature to extract (default: gene)] [-q Qualifier to print | -s Word to search]
 
 -h  print help and exit"""
     sys.exit(iCode)
@@ -35,6 +35,14 @@ def getQualValue(sQualifier, dFeature):
 
     return ""
 
+def searchQualValue(sWord, dFeature):
+    if not sWord: return ""
+
+    for tQualifier in dFeature["qualifiers"]:
+        if sWord in tQualifier[1]: return tQualifier[1]
+
+    return ""
+
 def getSequence(sWholeSequence, dFeature):
     sSequence = sWholeSequence[dFeature["start"] - 1: dFeature["end"]]
     if dFeature["direction"] == "C":
@@ -43,14 +51,14 @@ def getSequence(sWholeSequence, dFeature):
     return sSequence
     
 try:
-    lOpts, lArgs = getopt.getopt(sys.argv[1:], "f:i:q:h")
+    lOpts, lArgs = getopt.getopt(sys.argv[1:], "f:i:q:s:h")
 except:
     help()
 
 sFileName = None
 sFeature = "gene"
 sQualifier = None
-sSequence = None
+sWord = None
     
 for sOpt, sVal in lOpts:
     if sOpt == "-h":
@@ -61,20 +69,38 @@ for sOpt, sVal in lOpts:
         sFeature = sVal
     elif sOpt == "-q":
         sQualifier = sVal
+    elif sOpt == "-s":
+        sWord = sVal
     else:
         help()
-   
-lSeqData = gbfpy.parse(sFileName) # parse a GBF file which contains more than one GBF sequence data
 
+oGBParsy = gbparsy.gbparsy()
+oGBParsy.parse(sFileName) # parse a GBF file which contains more than one GBF sequence data
+
+# If you want to get a list of SeqRecord instances, use getBioData method instead of getRawData.
+lSeqData = oGBParsy.getRawData()
+   
 for dSeqData in lSeqData: # dSeqData has a parsed data of a GBF sequence data
     # start of user process
     for dFeature in dSeqData["features"]:
         if dFeature["feature"] == sFeature:
-            sys.stdout.write(">%s_%i-%i %s\n%s\n" % (
-                dFeature["feature"],
-                dFeature["start"],
-                dFeature["end"],
-                getQualValue(sQualifier, dFeature),
-                getSequence(dSeqData["sequence"], dFeature)))
+            if sWord:
+                sValue = searchQualValue(sWord, dFeature)
+                if sValue:
+                    sys.stdout.write(">%s_%i-%i_%s %s\n%s\n" % (
+                        dFeature["feature"],
+                        dFeature["start"],
+                        dFeature["end"],
+                        dFeature["direction"],
+                        sValue,
+                        getSequence(dSeqData["sequence"], dFeature)))
+            else:
+                sys.stdout.write(">%s_%i-%i_%s %s\n%s\n" % (
+                    dFeature["feature"],
+                    dFeature["start"],
+                    dFeature["end"],
+                    dFeature["direction"],
+                    getQualValue(sQualifier, dFeature),
+                    getSequence(dSeqData["sequence"], dFeature)))
     # end of user process
 }}}
